@@ -35,6 +35,59 @@
         return div.innerHTML;
     }
 
+    function copyText(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) {
+            return;
+        }
+        const text = element.value ?? element.textContent ?? '';
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text);
+            return;
+        }
+        element.focus();
+        element.select();
+        document.execCommand('copy');
+    }
+
+    function formatUpdatedCategories(updatedCategories) {
+        if (!Array.isArray(updatedCategories) || updatedCategories.length === 0) {
+            return '';
+        }
+        const lines = ['## Category Definitions', ''];
+        updatedCategories.forEach(item => {
+            if (!item || !item.category) {
+                return;
+            }
+            lines.push(`### ${item.category}`);
+            lines.push(item.updated_definition || '');
+            lines.push('');
+        });
+        return lines.join('\n').trim() + '\n';
+    }
+
+    function formatUpdatedFewShots(updatedFewShots) {
+        if (!Array.isArray(updatedFewShots) || updatedFewShots.length === 0) {
+            return '';
+        }
+        const actionable = updatedFewShots.filter(item => item && item.action !== 'remove');
+        if (actionable.length === 0) {
+            return '';
+        }
+        const lines = ['## Examples', ''];
+        actionable.forEach(item => {
+            const example = item.example || {};
+            if (example.id) {
+                lines.push(`**ID:** ${example.id}`);
+            }
+            lines.push(`**News:** ${example.news_content || ''}`);
+            lines.push(`**Category:** ${example.category || ''}`);
+            lines.push(`**Reasoning:** ${example.reasoning || ''}`);
+            lines.push('');
+        });
+        return lines.join('\n').trim() + '\n';
+    }
+
     function toggleContent(articleId) {
         const contentEl = document.getElementById('content-' + articleId);
         const fullContent = contentEl.dataset.full;
@@ -228,16 +281,86 @@
         fetch(`/api/workspaces/${wsId}/suggest-improvements`, {method: 'POST'})
         .then(r => r.json())
         .then(data => {
+            const categorySuggestions = Array.isArray(data.category_suggestions)
+                ? data.category_suggestions
+                : [];
+            const priorityOrder = Array.isArray(data.priority_order)
+                ? data.priority_order
+                : [];
+            const updatedCategories = Array.isArray(data.updated_categories)
+                ? data.updated_categories
+                : [];
+            const updatedFewShots = Array.isArray(data.updated_few_shots)
+                ? data.updated_few_shots
+                : [];
+            const updatedCategoriesText = formatUpdatedCategories(updatedCategories);
+            const updatedFewShotsText = formatUpdatedFewShots(updatedFewShots);
+            const removedFewShotIds = updatedFewShots
+                .filter(item => item && item.action === 'remove' && item.example && item.example.id)
+                .map(item => item.example.id);
+
             document.getElementById('suggestions-content').innerHTML = `
                 <h3 class="font-semibold mt-4">Category Suggestions</h3>
                 <ul class="list-disc pl-5">
-                    ${data.category_suggestions.map(s => `<li>${s.category}: ${s.rationale}</li>`).join('')}
+                    ${categorySuggestions.map(s => `<li>${s.category}: ${s.rationale}</li>`).join('')}
                 </ul>
                 <h3 class="font-semibold mt-4">Priority</h3>
                 <ol class="list-decimal pl-5">
-                    ${data.priority_order.map(p => `<li>${p}</li>`).join('')}
+                    ${priorityOrder.map(p => `<li>${p}</li>`).join('')}
                 </ol>
+                <details class="mt-4">
+                    <summary class="font-semibold cursor-pointer">Updated Categories (changed only)</summary>
+                    <div class="mt-2 space-y-2">
+                        <textarea id="updated-categories-text" readonly
+                                  class="w-full h-40 border rounded p-2 text-sm"></textarea>
+                        <button id="copy-updated-categories"
+                                onclick="copyText('updated-categories-text')"
+                                class="bg-blue-600 text-white px-3 py-1 rounded">
+                            Copy
+                        </button>
+                    </div>
+                </details>
+                <details class="mt-4">
+                    <summary class="font-semibold cursor-pointer">Updated Few-Shot Examples (changed only)</summary>
+                    <div class="mt-2 space-y-2">
+                        <textarea id="updated-fewshots-text" readonly
+                                  class="w-full h-56 border rounded p-2 text-sm"></textarea>
+                        <button id="copy-updated-fewshots"
+                                onclick="copyText('updated-fewshots-text')"
+                                class="bg-blue-600 text-white px-3 py-1 rounded">
+                            Copy
+                        </button>
+                        <div id="updated-fewshots-removals" class="text-sm text-gray-600"></div>
+                    </div>
+                </details>
             `;
+
+            const updatedCategoriesTextArea = document.getElementById('updated-categories-text');
+            const updatedFewShotsTextArea = document.getElementById('updated-fewshots-text');
+            const copyUpdatedCategories = document.getElementById('copy-updated-categories');
+            const copyUpdatedFewShots = document.getElementById('copy-updated-fewshots');
+            const removalList = document.getElementById('updated-fewshots-removals');
+
+            updatedCategoriesTextArea.value = updatedCategoriesText || 'No changes suggested.';
+            copyUpdatedCategories.disabled = updatedCategoriesText.length === 0;
+            copyUpdatedCategories.classList.toggle('opacity-50', copyUpdatedCategories.disabled);
+            copyUpdatedCategories.classList.toggle('cursor-not-allowed', copyUpdatedCategories.disabled);
+
+            updatedFewShotsTextArea.value = updatedFewShotsText || 'No additions or modifications suggested.';
+            copyUpdatedFewShots.disabled = updatedFewShotsText.length === 0;
+            copyUpdatedFewShots.classList.toggle('opacity-50', copyUpdatedFewShots.disabled);
+            copyUpdatedFewShots.classList.toggle('cursor-not-allowed', copyUpdatedFewShots.disabled);
+
+            if (removedFewShotIds.length > 0) {
+                removalList.innerHTML = `
+                    <div class="mt-2 font-semibold">Remove examples</div>
+                    <ul class="list-disc pl-5">
+                        ${removedFewShotIds.map(id => `<li>${escapeHtml(id)}</li>`).join('')}
+                    </ul>
+                `;
+            } else {
+                removalList.innerHTML = '';
+            }
         })
         .catch(err => {
             document.getElementById('suggestions-content').innerHTML = 'Error: ' + err.message;
