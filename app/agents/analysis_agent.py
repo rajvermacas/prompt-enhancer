@@ -24,7 +24,19 @@ class AnalysisAgent:
             HumanMessage(content=prompt),
         ]
         response = self.llm.invoke(messages)
-        return self._parse_response(response.content)
+        insight = self._parse_response(response.content)
+
+        allowed_categories = {cat.name for cat in categories}
+        if insight.category not in allowed_categories:
+            coerced = self._coerce_category_from_excerpt(insight, categories)
+            if coerced:
+                insight.category = coerced
+            else:
+                raise ValueError(
+                    f"LLM returned category '{insight.category}' not in allowed set"
+                )
+
+        return insight
 
     def _build_prompt(
         self,
@@ -32,7 +44,13 @@ class AnalysisAgent:
         few_shots: list[FewShotExample],
         article_content: str,
     ) -> str:
-        parts = [self.system_prompt, "\n\n## Category Definitions\n"]
+        parts = ["## Category Definitions\n"]
+
+        allowed = [cat.name for cat in categories]
+        parts.append("Allowed categories (must match exactly):\n")
+        for name in allowed:
+            parts.append(f"- {name}\n")
+        parts.append("\n")
 
         for cat in categories:
             parts.append(f"### {cat.name}\n{cat.definition}\n")
@@ -51,6 +69,11 @@ class AnalysisAgent:
         parts.append("- category: the category name\n")
         parts.append("- reasoning_table: array of {category_excerpt, news_excerpt, reasoning}\n")
         parts.append("- confidence: float between 0 and 1\n")
+        parts.append(
+            "\nRules:\n"
+            "- category MUST be one of the Allowed categories listed above (exact match)\n"
+            "- category_excerpt MUST be verbatim from the chosen category definition\n"
+        )
 
         return "".join(parts)
 
@@ -71,3 +94,39 @@ class AnalysisAgent:
             ],
             confidence=data["confidence"],
         )
+
+    def _coerce_category_from_excerpt(
+        self,
+        insight: AIInsight,
+        categories: list[CategoryDefinition],
+    ) -> str | None:
+        if not insight.reasoning_table:
+            return None
+
+        best_category: str | None = None
+        best_score = 0
+        tie = False
+
+        for cat in categories:
+            definition = cat.definition or ""
+            if not definition:
+                continue
+
+            score_for_cat = 0
+            for row in insight.reasoning_table:
+                excerpt = (row.category_excerpt or "").strip()
+                if not excerpt:
+                    continue
+                if excerpt in definition:
+                    score_for_cat = max(score_for_cat, len(excerpt))
+
+            if score_for_cat > best_score:
+                best_score = score_for_cat
+                best_category = cat.name
+                tie = False
+            elif score_for_cat == best_score and score_for_cat != 0:
+                tie = True
+
+        if tie or best_score == 0:
+            return None
+        return best_category
