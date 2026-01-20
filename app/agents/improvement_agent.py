@@ -21,6 +21,13 @@ Respond with a JSON object containing:
 - updated_categories: array of {category, updated_definition} for changed items only
 - updated_few_shots: array of {action, example} for changed items only
   - example must include id and full fields for add/modify, id only for remove
+
+Rules:
+- Return ONLY valid JSON (no markdown).
+- For updated_categories, include only entries with a non-empty updated_definition.
+- For updated_few_shots, include add/modify entries only if example has non-empty
+  news_content, category, and reasoning.
+- If you cannot provide full content for an item, omit it from updated_* arrays.
 """
 
 

@@ -50,42 +50,57 @@
         document.execCommand('copy');
     }
 
+    function isFilled(value) {
+        return typeof value === 'string' && value.trim().length > 0;
+    }
+
     function formatUpdatedCategories(updatedCategories) {
         if (!Array.isArray(updatedCategories) || updatedCategories.length === 0) {
-            return '';
+            return {text: '', skipped: 0};
         }
         const lines = ['## Category Definitions', ''];
+        let skipped = 0;
         updatedCategories.forEach(item => {
-            if (!item || !item.category) {
+            if (!item || !isFilled(item.category) || !isFilled(item.updated_definition)) {
+                skipped += 1;
                 return;
             }
             lines.push(`### ${item.category}`);
-            lines.push(item.updated_definition || '');
+            lines.push(item.updated_definition);
             lines.push('');
         });
-        return lines.join('\n').trim() + '\n';
+        const text = lines.length > 2 ? lines.join('\n').trim() + '\n' : '';
+        return {text, skipped};
     }
 
     function formatUpdatedFewShots(updatedFewShots) {
         if (!Array.isArray(updatedFewShots) || updatedFewShots.length === 0) {
-            return '';
+            return {text: '', skipped: 0};
         }
         const actionable = updatedFewShots.filter(item => item && item.action !== 'remove');
         if (actionable.length === 0) {
-            return '';
+            return {text: '', skipped: 0};
         }
         const lines = ['## Examples', ''];
+        let skipped = 0;
         actionable.forEach(item => {
             const example = item.example || {};
-            if (example.id) {
+            if (!isFilled(example.news_content)
+                || !isFilled(example.category)
+                || !isFilled(example.reasoning)) {
+                skipped += 1;
+                return;
+            }
+            if (isFilled(example.id)) {
                 lines.push(`**ID:** ${example.id}`);
             }
-            lines.push(`**News:** ${example.news_content || ''}`);
-            lines.push(`**Category:** ${example.category || ''}`);
-            lines.push(`**Reasoning:** ${example.reasoning || ''}`);
+            lines.push(`**News:** ${example.news_content}`);
+            lines.push(`**Category:** ${example.category}`);
+            lines.push(`**Reasoning:** ${example.reasoning}`);
             lines.push('');
         });
-        return lines.join('\n').trim() + '\n';
+        const text = lines.length > 2 ? lines.join('\n').trim() + '\n' : '';
+        return {text, skipped};
     }
 
     function toggleContent(articleId) {
@@ -293,8 +308,8 @@
             const updatedFewShots = Array.isArray(data.updated_few_shots)
                 ? data.updated_few_shots
                 : [];
-            const updatedCategoriesText = formatUpdatedCategories(updatedCategories);
-            const updatedFewShotsText = formatUpdatedFewShots(updatedFewShots);
+            const updatedCategoriesResult = formatUpdatedCategories(updatedCategories);
+            const updatedFewShotsResult = formatUpdatedFewShots(updatedFewShots);
             const removedFewShotIds = updatedFewShots
                 .filter(item => item && item.action === 'remove' && item.example && item.example.id)
                 .map(item => item.example.id);
@@ -313,6 +328,7 @@
                     <div class="mt-2 space-y-2">
                         <textarea id="updated-categories-text" readonly
                                   class="w-full h-40 border rounded p-2 text-sm"></textarea>
+                        <div id="updated-categories-note" class="text-xs text-gray-500"></div>
                         <button id="copy-updated-categories"
                                 onclick="copyText('updated-categories-text')"
                                 class="bg-blue-600 text-white px-3 py-1 rounded">
@@ -325,6 +341,7 @@
                     <div class="mt-2 space-y-2">
                         <textarea id="updated-fewshots-text" readonly
                                   class="w-full h-56 border rounded p-2 text-sm"></textarea>
+                        <div id="updated-fewshots-note" class="text-xs text-gray-500"></div>
                         <button id="copy-updated-fewshots"
                                 onclick="copyText('updated-fewshots-text')"
                                 class="bg-blue-600 text-white px-3 py-1 rounded">
@@ -339,17 +356,29 @@
             const updatedFewShotsTextArea = document.getElementById('updated-fewshots-text');
             const copyUpdatedCategories = document.getElementById('copy-updated-categories');
             const copyUpdatedFewShots = document.getElementById('copy-updated-fewshots');
+            const updatedCategoriesNote = document.getElementById('updated-categories-note');
+            const updatedFewShotsNote = document.getElementById('updated-fewshots-note');
             const removalList = document.getElementById('updated-fewshots-removals');
 
-            updatedCategoriesTextArea.value = updatedCategoriesText || 'No changes suggested.';
-            copyUpdatedCategories.disabled = updatedCategoriesText.length === 0;
+            updatedCategoriesTextArea.value = updatedCategoriesResult.text || 'No changes suggested.';
+            copyUpdatedCategories.disabled = updatedCategoriesResult.text.length === 0;
             copyUpdatedCategories.classList.toggle('opacity-50', copyUpdatedCategories.disabled);
             copyUpdatedCategories.classList.toggle('cursor-not-allowed', copyUpdatedCategories.disabled);
+            if (updatedCategoriesResult.skipped > 0) {
+                updatedCategoriesNote.textContent = `Skipped ${updatedCategoriesResult.skipped} incomplete item(s) returned by the agent.`;
+            } else {
+                updatedCategoriesNote.textContent = '';
+            }
 
-            updatedFewShotsTextArea.value = updatedFewShotsText || 'No additions or modifications suggested.';
-            copyUpdatedFewShots.disabled = updatedFewShotsText.length === 0;
+            updatedFewShotsTextArea.value = updatedFewShotsResult.text || 'No additions or modifications suggested.';
+            copyUpdatedFewShots.disabled = updatedFewShotsResult.text.length === 0;
             copyUpdatedFewShots.classList.toggle('opacity-50', copyUpdatedFewShots.disabled);
             copyUpdatedFewShots.classList.toggle('cursor-not-allowed', copyUpdatedFewShots.disabled);
+            if (updatedFewShotsResult.skipped > 0) {
+                updatedFewShotsNote.textContent = `Skipped ${updatedFewShotsResult.skipped} incomplete item(s) returned by the agent.`;
+            } else {
+                updatedFewShotsNote.textContent = '';
+            }
 
             if (removedFewShotIds.length > 0) {
                 removalList.innerHTML = `
