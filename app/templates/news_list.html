@@ -152,31 +152,31 @@
                 : '';
 
             return `
-            <div id="row-${article.id}" class="bg-white rounded-lg shadow p-4">
-                <div class="flex justify-between items-start">
-                    <div class="flex-1">
-                        <h3 class="font-semibold text-lg ${headlineClass}"
+            <div id="row-${article.id}" class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                <div class="flex justify-between items-start gap-6">
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-semibold text-lg text-gray-900 leading-snug ${headlineClass}"
                             ${headlineClick}>
                             ${article.headline}
                         </h3>
-                        <p id="content-${article.id}" class="text-gray-600 text-sm mt-1"
+                        <p id="content-${article.id}" class="text-gray-500 text-sm mt-2 leading-relaxed"
                            data-full="${escapeHtml(article.content)}"
                            data-expanded="false">
                             ${displayContent}
                         </p>
                     </div>
                     <button onclick="startWorkflow('${article.id}')"
-                            class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800 ml-4">
+                            class="flex-shrink-0 bg-red-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-red-500 active:bg-red-700 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-2 focus:outline-none">
                         Start AI Workflow
                     </button>
                 </div>
-                <div class="ai-insight hidden mt-4"></div>
+                <div class="ai-insight hidden mt-6"></div>
             </div>
         `}).join('');
 
         if (data.total > data.articles.length) {
             container.innerHTML += `
-                <div class="text-center text-gray-500 text-sm">
+                <div class="text-center text-gray-400 text-sm py-4">
                     Showing ${data.articles.length} of ${data.total} articles
                 </div>
             `;
