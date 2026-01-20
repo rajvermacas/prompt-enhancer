@@ -1,0 +1,60 @@
+I want to build a news analysis agent.
+The input will be a news article and the output would be category like planned price sensitive news or unplanned sensitive news or not an important news and so on along with proper reasoning on why it fell in the category and why not in others.
+This solution should use langchain.
+
+There will be 3 dimensions of prompts to it.
+
+1. Category definitions prompt - It will be persisted and but can be changed from the UI also so that the end user and tweak and experience the effects.
+
+2. Few shots examples - This will also be persisted but can be changed fro mthe UI. So the user will pass some historical news which they have categorised in the correct category so that the LLM understands it well. This few shot example will have category and reasoning also.
+
+3. Actual system prompt in the code in some separate file which won't be exposed to the Agent - This will have the prompt to give a personality to the news analysis agent and some basic workflow like "Always create a table with 3 columns where 1st column should show the verbatim excerpts of the category definiton, 2nd would be the verbatim excerpt from the news article, 3rd column would be the reasononing or why its matching" so on and so forth.
+
+this system prompt should not be visible to the end user on the UI.
+
+This agent should use all the 3 dimensions of prompts to derive its conclusion.
+
+I want to build a python solution where there will be a ui using htmx and tailwind css. 
+This will be served using the same fastapi backend. So there will be only one backend acting as a backend and also serving the web pages using templates and static resources.
+
+the overall idea is to create a solution of news analysis agent using langchain (with initial support of openrouter and azure openai and gemin) and LLM where end users and tweak the prompts on the UI and improve the prompts for the news analysis agent.
+----------------------------------
+
+the news will be present in a csv file.
+The UI should show a lazy loading screen with all the news with a button to AI Assist - when this button is clicked the workflow should start and provide with the result on the UI. 
+-----------------------------------
+
+Yes but we also need to ensure that there is a feedback loop also. Once the AI result is shown on the UI the user must provide a feedback and engage with a thumbs up and down. And this feedback loop should be used by the solution to improve its accuracy and suggest the users with an improved prompt.
+
+Also I want another evaluation agent that should be able to look at the user prompts and the result and provide with a score on how good the prompt really is. so that we can use the highest scoring prompt in the final stage of production.
+
+Why we are so invested in this project because we have got another separate agentic system where we need to provide the best prompt which we will get from this particular project.
+-----------------------------------
+
+The evaluation agent has to check the correctness of the result based on the prompts provided.
+Then the evaluation agent should check for the correctness of the result
+-----------------------------------
+
+There will be no column in the csv to include an optional "expected_category".\                                                      
+It should be provided by the User himself on the UI.\                                                                                
+so the user journey should look like:
+    1. There will be rows with news and Start AI Workflow (earlier it was AI Assist but now lets call it AI Workflow) button.
+    2. User clicks on Start AI Workfow button
+    3. The backend starts its job and provide with a AI insight.
+    4. The user then provides a feedback note and thumbs up/down. 
+    5. Remember positve or negative but the feedback is mandatory.
+    6. In this feedback the user must enter whether its a correct category, if not what the correct category is along with the reasoning of it.
+    7. the evaluation agent should kick in and start its investigation to find if there is any gap or misleading or incorrect information present in the user prompt or user few shots examples which resulted in the AI insight for the incorrect category.
+    8. If the feedback was positive then the evaluation agent should check the user prompts, user few shots examples to understand why the result is accurate.
+    9. there wil be a concise report outputted by the evaluation agent that should be used to suggest the end user to improve the prompts.
+    10. this concise report should be shown to the user on the UI there itself and this workflow should stop right there.
+    11. Note all these feedbacks + evaluation agent's report should be persisted on disk.
+    12. There should be another workflow where a user clicks on a button to ask for suggestion to improve the prompts.
+    13. All the evaluation reports that we generated along with current user prompts and few shots examples this workflow should be able to help the user to improve the user prompts and user few shots examples.
+
+-------------------------------------
+
+There should be a Workspace concept also where Users create a new workspace that starts afresh without any evalaution reports or feedbacks. It should be a vanilla workspace with just the user prompts/definitions and few shots.
+
+The user can create multiple workspaces. All the workspaces states should be persisted.
+-------------------------------------
