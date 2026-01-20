@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Prompt Enhancer{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <header class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <a href="/" class="text-xl font-bold text-gray-900">Prompt Enhancer</a>
+            <nav class="flex items-center gap-4">
+                <a href="/" class="text-gray-600 hover:text-gray-900">News</a>
+                <a href="/prompts" class="text-gray-600 hover:text-gray-900">Prompts</a>
+                <div class="flex items-center gap-2">
+                    <select id="workspace-selector"
+                            class="border rounded px-3 py-1.5 text-sm"
+                            hx-get="/api/workspaces"
+                            hx-trigger="load">
+                        <option value="">Select Workspace</option>
+                        {% for ws in workspaces %}
+                        <option value="{{ ws.id }}">{{ ws.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="createWorkspace()"
+                            class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700">
+                        + New
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+    <script>
+        function getWorkspaceId() {
+            return document.getElementById('workspace-selector').value;
+        }
+
+        function createWorkspace() {
+            const name = prompt('Workspace name:');
+            if (name) {
+                fetch('/api/workspaces', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name})
+                }).then(() => location.reload());
+            }
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
