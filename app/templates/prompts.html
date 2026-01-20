@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Prompts - Prompt Enhancer{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Prompt Editor</h1>
+
+<div class="bg-white rounded-lg shadow">
+    <div class="border-b">
+        <nav class="flex">
+            <button onclick="showTab('categories')" id="tab-categories"
+                    class="px-6 py-3 border-b-2 border-blue-600 text-blue-600">
+                Category Definitions
+            </button>
+            <button onclick="showTab('fewshots')" id="tab-fewshots"
+                    class="px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                Few-Shot Examples
+            </button>
+        </nav>
+    </div>
+
+    <div id="panel-categories" class="p-6">
+        <div id="categories-list" class="space-y-4 mb-4"></div>
+        <button onclick="addCategory()" class="bg-blue-600 text-white px-4 py-2 rounded">+ Add Category</button>
+        <button onclick="saveCategories()" class="bg-green-600 text-white px-4 py-2 rounded ml-2">Save</button>
+    </div>
+
+    <div id="panel-fewshots" class="p-6 hidden">
+        <div id="fewshots-list" class="space-y-4 mb-4"></div>
+        <button onclick="addFewShot()" class="bg-blue-600 text-white px-4 py-2 rounded">+ Add Example</button>
+        <button onclick="saveFewShots()" class="bg-green-600 text-white px-4 py-2 rounded ml-2">Save</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let categories = [];
+    let fewShots = [];
+
+    function showTab(tab) {
+        document.getElementById('panel-categories').classList.toggle('hidden', tab !== 'categories');
+        document.getElementById('panel-fewshots').classList.toggle('hidden', tab !== 'fewshots');
+        document.getElementById('tab-categories').classList.toggle('border-blue-600', tab === 'categories');
+        document.getElementById('tab-categories').classList.toggle('text-blue-600', tab === 'categories');
+        document.getElementById('tab-categories').classList.toggle('border-transparent', tab !== 'categories');
+        document.getElementById('tab-categories').classList.toggle('text-gray-500', tab !== 'categories');
+        document.getElementById('tab-fewshots').classList.toggle('border-blue-600', tab === 'fewshots');
+        document.getElementById('tab-fewshots').classList.toggle('text-blue-600', tab === 'fewshots');
+        document.getElementById('tab-fewshots').classList.toggle('border-transparent', tab !== 'fewshots');
+        document.getElementById('tab-fewshots').classList.toggle('text-gray-500', tab !== 'fewshots');
+    }
+
+    function loadPrompts() {
+        const wsId = getWorkspaceId();
+        if (!wsId) return;
+
+        fetch(`/api/workspaces/${wsId}/prompts/categories`)
+            .then(r => r.json())
+            .then(data => {
+                categories = data.categories;
+                renderCategories();
+            });
+
+        fetch(`/api/workspaces/${wsId}/prompts/few-shots`)
+            .then(r => r.json())
+            .then(data => {
+                fewShots = data.examples;
+                renderFewShots();
+            });
+    }
+
+    function renderCategories() {
+        document.getElementById('categories-list').innerHTML = categories.map((c, i) => `
+            <div class="border rounded p-4">
+                <input type="text" value="${escapeHtml(c.name)}" onchange="categories[${i}].name=this.value"
+                       class="w-full border rounded p-2 mb-2" placeholder="Category Name">
+                <textarea onchange="categories[${i}].definition=this.value"
+                          class="w-full border rounded p-2" rows="3" placeholder="Definition">${escapeHtml(c.definition)}</textarea>
+                <button onclick="categories.splice(${i},1);renderCategories()" class="text-red-600 text-sm mt-2">Remove</button>
+            </div>
+        `).join('');
+    }
+
+    function addCategory() {
+        categories.push({name: '', definition: ''});
+        renderCategories();
+    }
+
+    function saveCategories() {
+        const wsId = getWorkspaceId();
+        if (!wsId) {
+            alert('Please select a workspace first');
+            return;
+        }
+        fetch(`/api/workspaces/${wsId}/prompts/categories`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({categories})
+        }).then(() => alert('Categories saved!'));
+    }
+
+    function renderFewShots() {
+        document.getElementById('fewshots-list').innerHTML = fewShots.map((f, i) => `
+            <div class="border rounded p-4">
+                <input type="text" value="${escapeHtml(f.id)}" readonly class="w-full border rounded p-2 mb-2 bg-gray-100">
+                <textarea onchange="fewShots[${i}].news_content=this.value"
+                          class="w-full border rounded p-2 mb-2" rows="2" placeholder="News Content">${escapeHtml(f.news_content)}</textarea>
+                <input type="text" value="${escapeHtml(f.category)}" onchange="fewShots[${i}].category=this.value"
+                       class="w-full border rounded p-2 mb-2" placeholder="Category">
+                <textarea onchange="fewShots[${i}].reasoning=this.value"
+                          class="w-full border rounded p-2" rows="2" placeholder="Reasoning">${escapeHtml(f.reasoning)}</textarea>
+                <button onclick="fewShots.splice(${i},1);renderFewShots()" class="text-red-600 text-sm mt-2">Remove</button>
+            </div>
+        `).join('');
+    }
+
+    function addFewShot() {
+        fewShots.push({id: 'ex-' + Date.now(), news_content: '', category: '', reasoning: ''});
+        renderFewShots();
+    }
+
+    function saveFewShots() {
+        const wsId = getWorkspaceId();
+        if (!wsId) {
+            alert('Please select a workspace first');
+            return;
+        }
+        fetch(`/api/workspaces/${wsId}/prompts/few-shots`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({examples: fewShots})
+        }).then(() => alert('Few-shots saved!'));
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    document.getElementById('workspace-selector').addEventListener('change', loadPrompts);
+    if (getWorkspaceId()) loadPrompts();
+</script>
+{% endblock %}
