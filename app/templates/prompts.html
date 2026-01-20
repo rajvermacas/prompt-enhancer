@@ -3,32 +3,44 @@
 {% block title %}Prompts - Prompt Enhancer{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold mb-6 text-black">Prompt Editor</h1>
+<h1 class="text-2xl font-semibold mb-8 text-gray-900">Prompt Editor</h1>
 
-<div class="bg-white rounded-lg shadow">
-    <div class="border-b border-gray-200">
-        <nav class="flex">
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm">
+    <div class="border-b border-gray-100">
+        <nav class="flex gap-1 px-2 pt-2">
             <button onclick="showTab('categories')" id="tab-categories"
-                    class="px-6 py-3 border-b-2 border-red-600 text-red-600">
+                    class="px-5 py-3 rounded-t-lg font-medium text-sm border-b-2 border-red-600 text-red-600 bg-red-50/50 transition-all duration-200">
                 Category Definitions
             </button>
             <button onclick="showTab('fewshots')" id="tab-fewshots"
-                    class="px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-black">
+                    class="px-5 py-3 rounded-t-lg font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200">
                 Few-Shot Examples
             </button>
         </nav>
     </div>
 
     <div id="panel-categories" class="p-6">
-        <div id="categories-list" class="space-y-4 mb-4"></div>
-        <button onclick="addCategory()" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800">+ Add Category</button>
-        <button onclick="saveCategories()" class="bg-gray-800 text-white px-4 py-2 rounded ml-2 hover:bg-black">Save</button>
+        <div id="categories-list" class="space-y-5 mb-6"></div>
+        <div class="flex gap-3">
+            <button onclick="addCategory()" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-200 active:bg-gray-300 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0">
+                + Add Category
+            </button>
+            <button onclick="saveCategories()" class="bg-red-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-red-500 active:bg-red-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-2 focus:outline-none">
+                Save Changes
+            </button>
+        </div>
     </div>
 
     <div id="panel-fewshots" class="p-6 hidden">
-        <div id="fewshots-list" class="space-y-4 mb-4"></div>
-        <button onclick="addFewShot()" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800">+ Add Example</button>
-        <button onclick="saveFewShots()" class="bg-gray-800 text-white px-4 py-2 rounded ml-2 hover:bg-black">Save</button>
+        <div id="fewshots-list" class="space-y-5 mb-6"></div>
+        <div class="flex gap-3">
+            <button onclick="addFewShot()" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-200 active:bg-gray-300 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0">
+                + Add Example
+            </button>
+            <button onclick="saveFewShots()" class="bg-red-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-red-500 active:bg-red-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-2 focus:outline-none">
+                Save Changes
+            </button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -41,14 +53,23 @@
     function showTab(tab) {
         document.getElementById('panel-categories').classList.toggle('hidden', tab !== 'categories');
         document.getElementById('panel-fewshots').classList.toggle('hidden', tab !== 'fewshots');
-        document.getElementById('tab-categories').classList.toggle('border-red-600', tab === 'categories');
-        document.getElementById('tab-categories').classList.toggle('text-red-600', tab === 'categories');
-        document.getElementById('tab-categories').classList.toggle('border-transparent', tab !== 'categories');
-        document.getElementById('tab-categories').classList.toggle('text-gray-500', tab !== 'categories');
-        document.getElementById('tab-fewshots').classList.toggle('border-red-600', tab === 'fewshots');
-        document.getElementById('tab-fewshots').classList.toggle('text-red-600', tab === 'fewshots');
-        document.getElementById('tab-fewshots').classList.toggle('border-transparent', tab !== 'fewshots');
-        document.getElementById('tab-fewshots').classList.toggle('text-gray-500', tab !== 'fewshots');
+
+        const catTab = document.getElementById('tab-categories');
+        const fsTab = document.getElementById('tab-fewshots');
+
+        catTab.classList.toggle('border-red-600', tab === 'categories');
+        catTab.classList.toggle('text-red-600', tab === 'categories');
+        catTab.classList.toggle('bg-red-50/50', tab === 'categories');
+        catTab.classList.toggle('border-transparent', tab !== 'categories');
+        catTab.classList.toggle('text-gray-500', tab !== 'categories');
+        catTab.classList.toggle('bg-transparent', tab !== 'categories');
+
+        fsTab.classList.toggle('border-red-600', tab === 'fewshots');
+        fsTab.classList.toggle('text-red-600', tab === 'fewshots');
+        fsTab.classList.toggle('bg-red-50/50', tab === 'fewshots');
+        fsTab.classList.toggle('border-transparent', tab !== 'fewshots');
+        fsTab.classList.toggle('text-gray-500', tab !== 'fewshots');
+        fsTab.classList.toggle('bg-transparent', tab !== 'fewshots');
     }
 
     function loadPrompts() {
