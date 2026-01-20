@@ -11,10 +11,7 @@
     </button>
 </div>
 
-<div id="news-list" class="space-y-4"
-     hx-get="/api/news?page=1&limit=20"
-     hx-trigger="load"
-     hx-swap="innerHTML">
+<div id="news-list" class="space-y-4">
     <div class="text-center py-8 text-gray-500">Loading news...</div>
 </div>
 
@@ -32,6 +29,26 @@
     // Store current insight for feedback submission
     window.currentInsight = null;
 
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function toggleContent(articleId) {
+        const contentEl = document.getElementById('content-' + articleId);
+        const fullContent = contentEl.dataset.full;
+        const isExpanded = contentEl.dataset.expanded === 'true';
+
+        if (isExpanded) {
+            contentEl.textContent = fullContent.substring(0, 200) + '...';
+            contentEl.dataset.expanded = 'false';
+        } else {
+            contentEl.textContent = fullContent;
+            contentEl.dataset.expanded = 'true';
+        }
+    }
+
     // Load news on page load
     document.addEventListener('DOMContentLoaded', function() {
         loadNews();
@@ -47,12 +64,31 @@
 
     function renderNewsList(data) {
         const container = document.getElementById('news-list');
-        container.innerHTML = data.articles.map(article => `
+        container.innerHTML = data.articles.map(article => {
+            const needsTruncation = article.content.length > 200;
+            const displayContent = needsTruncation
+                ? article.content.substring(0, 200) + '...'
+                : article.content;
+            const headlineClass = needsTruncation
+                ? 'cursor-pointer hover:text-blue-600'
+                : '';
+            const headlineClick = needsTruncation
+                ? `onclick="toggleContent('${article.id}')"`
+                : '';
+
+            return `
             <div id="row-${article.id}" class="bg-white rounded-lg shadow p-4">
                 <div class="flex justify-between items-start">
                     <div class="flex-1">
-                        <h3 class="font-semibold text-lg">${article.headline}</h3>
-                        <p class="text-gray-600 text-sm mt-1">${article.content.substring(0, 200)}...</p>
+                        <h3 class="font-semibold text-lg ${headlineClass}"
+                            ${headlineClick}>
+                            ${article.headline}
+                        </h3>
+                        <p id="content-${article.id}" class="text-gray-600 text-sm mt-1"
+                           data-full="${escapeHtml(article.content)}"
+                           data-expanded="false">
+                            ${displayContent}
+                        </p>
                     </div>
                     <button onclick="startWorkflow('${article.id}')"
                             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ml-4">
@@ -61,7 +97,7 @@
                 </div>
                 <div class="ai-insight hidden mt-4"></div>
             </div>
-        `).join('');
+        `}).join('');
 
         if (data.total > data.articles.length) {
             container.innerHTML += `

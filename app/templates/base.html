@@ -16,9 +16,7 @@
                 <a href="/prompts" class="text-gray-600 hover:text-gray-900">Prompts</a>
                 <div class="flex items-center gap-2">
                     <select id="workspace-selector"
-                            class="border rounded px-3 py-1.5 text-sm"
-                            hx-get="/api/workspaces"
-                            hx-trigger="load">
+                            class="border rounded px-3 py-1.5 text-sm">
                         <option value="">Select Workspace</option>
                         {% for ws in workspaces %}
                         <option value="{{ ws.id }}">{{ ws.name }}</option>
@@ -40,6 +38,23 @@
             return document.getElementById('workspace-selector').value;
         }
 
+        function setWorkspaceId(id) {
+            const selector = document.getElementById('workspace-selector');
+            selector.value = id;
+            localStorage.setItem('selectedWorkspaceId', id);
+        }
+
+        function restoreWorkspaceSelection() {
+            const savedId = localStorage.getItem('selectedWorkspaceId');
+            if (savedId) {
+                const selector = document.getElementById('workspace-selector');
+                const option = selector.querySelector(`option[value="${savedId}"]`);
+                if (option) {
+                    selector.value = savedId;
+                }
+            }
+        }
+
         function createWorkspace() {
             const name = prompt('Workspace name:');
             if (name) {
@@ -47,9 +62,22 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({name})
-                }).then(() => location.reload());
+                })
+                .then(response => response.json())
+                .then(data => {
+                    localStorage.setItem('selectedWorkspaceId', data.id);
+                    location.reload();
+                });
             }
         }
+
+        // Add event listener for workspace selection change
+        document.getElementById('workspace-selector').addEventListener('change', function() {
+            localStorage.setItem('selectedWorkspaceId', this.value);
+        });
+
+        // Restore selection on page load
+        restoreWorkspaceSelection();
     </script>
     {% block scripts %}{% endblock %}
 </body>
