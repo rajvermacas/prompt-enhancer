@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}News - Prompt Enhancer{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">News Articles</h1>
+    <button onclick="suggestImprovements()"
+            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        Suggest Prompt Improvements
+    </button>
+</div>
+
+<div id="news-list" class="space-y-4"
+     hx-get="/api/news?page=1&limit=20"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    <div class="text-center py-8 text-gray-500">Loading news...</div>
+</div>
+
+<div id="suggestions-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-auto">
+        <h2 class="text-xl font-bold mb-4">Prompt Improvement Suggestions</h2>
+        <div id="suggestions-content"></div>
+        <button onclick="closeSuggestionsModal()" class="mt-4 bg-gray-600 text-white px-4 py-2 rounded">Close</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Store current insight for feedback submission
+    window.currentInsight = null;
+
+    // Load news on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadNews();
+    });
+
+    function loadNews() {
+        fetch('/api/news?page=1&limit=20')
+            .then(r => r.json())
+            .then(data => {
+                renderNewsList(data);
+            });
+    }
+
+    function renderNewsList(data) {
+        const container = document.getElementById('news-list');
+        container.innerHTML = data.articles.map(article => `
+            <div id="row-${article.id}" class="bg-white rounded-lg shadow p-4">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-lg">${article.headline}</h3>
+                        <p class="text-gray-600 text-sm mt-1">${article.content.substring(0, 200)}...</p>
+                    </div>
+                    <button onclick="startWorkflow('${article.id}')"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 ml-4">
+                        Start AI Workflow
+                    </button>
+                </div>
+                <div class="ai-insight hidden mt-4"></div>
+            </div>
+        `).join('');
+
+        if (data.total > data.articles.length) {
+            container.innerHTML += `
+                <div class="text-center text-gray-500 text-sm">
+                    Showing ${data.articles.length} of ${data.total} articles
+                </div>
+            `;
+        }
+    }
+
+    function startWorkflow(articleId) {
+        const wsId = getWorkspaceId();
+        if (!wsId) {
+            alert('Please select a workspace first');
+            return;
+        }
+        const row = document.getElementById('row-' + articleId);
+        const insightDiv = row.querySelector('.ai-insight');
+        insightDiv.innerHTML = '<div class="p-4 text-gray-500">Analyzing...</div>';
+        insightDiv.classList.remove('hidden');
+
+        fetch(`/api/workspaces/${wsId}/analyze`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({article_id: articleId})
+        })
+        .then(r => r.json())
+        .then(data => {
+            window.currentInsight = data;
+            insightDiv.innerHTML = renderInsight(articleId, data);
+            loadCategoriesForSelect(articleId);
+        })
+        .catch(err => {
+            insightDiv.innerHTML = '<div class="p-4 text-red-500">Error: ' + err.message + '</div>';
+        });
+    }
+
+    function loadCategoriesForSelect(articleId) {
+        const wsId = getWorkspaceId();
+        fetch(`/api/workspaces/${wsId}/prompts/categories`)
+            .then(r => r.json())
+            .then(data => {
+                const select = document.getElementById('correct-cat-' + articleId);
+                if (select) {
+                    select.innerHTML = '<option value="">Correct Category</option>' +
+                        data.categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+                }
+            });
+    }
+
+    function renderInsight(articleId, insight) {
+        return `
+            <div class="p-4 bg-blue-50 border-t">
+                <h4 class="font-semibold">AI Insight</h4>
+                <p><strong>Category:</strong> ${insight.category}</p>
+                <p><strong>Confidence:</strong> ${(insight.confidence * 100).toFixed(0)}%</p>
+                <table class="w-full mt-2 text-sm border">
+                    <thead><tr class="bg-gray-100">
+                        <th class="p-2 text-left">Category Excerpt</th>
+                        <th class="p-2 text-left">News Excerpt</th>
+                        <th class="p-2 text-left">Reasoning</th>
+                    </tr></thead>
+                    <tbody>
+                        ${insight.reasoning_table.map(r => `
+                            <tr class="border-t">
+                                <td class="p-2">${r.category_excerpt}</td>
+                                <td class="p-2">${r.news_excerpt}</td>
+                                <td class="p-2">${r.reasoning}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div class="mt-4 p-3 bg-white border rounded">
+                    <h5 class="font-semibold mb-2">Your Feedback (Required)</h5>
+                    <div class="flex gap-2 mb-2">
+                        <button onclick="submitFeedback('${articleId}', true)" class="px-3 py-1 bg-green-100 rounded hover:bg-green-200">👍 Correct</button>
+                        <button onclick="submitFeedback('${articleId}', false)" class="px-3 py-1 bg-red-100 rounded hover:bg-red-200">👎 Incorrect</button>
+                    </div>
+                    <select id="correct-cat-${articleId}" class="w-full border rounded p-2 mb-2">
+                        <option value="">Correct Category</option>
+                    </select>
+                    <textarea id="reasoning-${articleId}" class="w-full border rounded p-2 mb-2" placeholder="Your reasoning" rows="2"></textarea>
+                    <textarea id="note-${articleId}" class="w-full border rounded p-2" placeholder="Additional notes" rows="2"></textarea>
+                </div>
+            </div>
+        `;
+    }
+
+    function submitFeedback(articleId, thumbsUp) {
+        const wsId = getWorkspaceId();
+        const correctCat = document.getElementById('correct-cat-' + articleId).value;
+        const reasoning = document.getElementById('reasoning-' + articleId).value;
+        const note = document.getElementById('note-' + articleId).value;
+
+        if (!correctCat || !reasoning || !note) {
+            alert('All feedback fields are required');
+            return;
+        }
+
+        fetch(`/api/workspaces/${wsId}/feedback`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                article_id: articleId,
+                thumbs_up: thumbsUp,
+                correct_category: correctCat,
+                reasoning: reasoning,
+                note: note,
+                ai_insight: window.currentInsight
+            })
+        })
+        .then(r => r.json())
+        .then(report => {
+            alert('Evaluation Report: ' + report.summary);
+        });
+    }
+
+    function suggestImprovements() {
+        const wsId = getWorkspaceId();
+        if (!wsId) {
+            alert('Please select a workspace first');
+            return;
+        }
+
+        document.getElementById('suggestions-content').innerHTML = 'Loading...';
+        document.getElementById('suggestions-modal').classList.remove('hidden');
+
+        fetch(`/api/workspaces/${wsId}/suggest-improvements`, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('suggestions-content').innerHTML = `
+                <h3 class="font-semibold mt-4">Category Suggestions</h3>
+                <ul class="list-disc pl-5">
+                    ${data.category_suggestions.map(s => `<li>${s.category}: ${s.rationale}</li>`).join('')}
+                </ul>
+                <h3 class="font-semibold mt-4">Priority</h3>
+                <ol class="list-decimal pl-5">
+                    ${data.priority_order.map(p => `<li>${p}</li>`).join('')}
+                </ol>
+            `;
+        })
+        .catch(err => {
+            document.getElementById('suggestions-content').innerHTML = 'Error: ' + err.message;
+        });
+    }
+
+    function closeSuggestionsModal() {
+        document.getElementById('suggestions-modal').classList.add('hidden');
+    }
+</script>
+{% endblock %}
