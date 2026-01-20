@@ -18,6 +18,9 @@ Respond with a JSON object containing:
 - category_suggestions: array of {category, current, suggested, rationale}
 - few_shot_suggestions: array of {action: "add"|"modify"|"remove", details}
 - priority_order: array of strings indicating what to fix first
+- updated_categories: array of {category, updated_definition} for changed items only
+- updated_few_shots: array of {action, example} for changed items only
+  - example must include id and full fields for add/modify, id only for remove
 """
 
 
@@ -82,4 +85,6 @@ class ImprovementAgent:
             category_suggestions=data.get("category_suggestions", []),
             few_shot_suggestions=data.get("few_shot_suggestions", []),
             priority_order=data.get("priority_order", []),
+            updated_categories=data.get("updated_categories", []),
+            updated_few_shots=data.get("updated_few_shots", []),
         )
