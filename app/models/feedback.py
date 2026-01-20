@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReasoningRow(BaseModel):
@@ -47,7 +47,26 @@ class EvaluationReport(BaseModel):
     summary: str
 
 
+class UpdatedCategory(BaseModel):
+    category: str
+    updated_definition: str
+
+
+class UpdatedFewShotExample(BaseModel):
+    id: str
+    news_content: str | None = None
+    category: str | None = None
+    reasoning: str | None = None
+
+
+class UpdatedFewShot(BaseModel):
+    action: str
+    example: UpdatedFewShotExample
+
+
 class ImprovementSuggestion(BaseModel):
     category_suggestions: list[dict]
     few_shot_suggestions: list[dict]
     priority_order: list[str]
+    updated_categories: list[UpdatedCategory] = Field(default_factory=list)
+    updated_few_shots: list[UpdatedFewShot] = Field(default_factory=list)
