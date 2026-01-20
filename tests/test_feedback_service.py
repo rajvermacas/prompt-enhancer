@@ -25,7 +25,6 @@ def test_save_feedback(workspace_dir):
         thumbs_up=True,
         correct_category="Cat1",
         reasoning="Good",
-        note="Accurate",
         ai_insight=AIInsight(category="Cat1", reasoning_table=[], confidence=0.9),
         created_at=datetime.now(),
     )
@@ -48,7 +47,6 @@ def test_list_feedback(workspace_dir):
             thumbs_up=True,
             correct_category="Cat1",
             reasoning="Good",
-            note="Note",
             ai_insight=AIInsight(category="Cat1", reasoning_table=[], confidence=0.9),
             created_at=datetime.now(),
         )

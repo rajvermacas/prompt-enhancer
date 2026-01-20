@@ -33,7 +33,30 @@
     <main class="max-w-7xl mx-auto px-4 py-6">
         {% block content %}{% endblock %}
     </main>
+    <template id="loader-template">
+        <div class="loader flex flex-col items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
+            <p class="mt-3 text-gray-600 text-sm loader-text"></p>
+        </div>
+    </template>
+
     <script>
+        function createLoader(text) {
+            const template = document.getElementById('loader-template');
+            const loader = template.content.cloneNode(true);
+            loader.querySelector('.loader-text').textContent = text;
+            return loader;
+        }
+
+        function createLoaderHtml(text) {
+            return `
+                <div class="loader flex flex-col items-center justify-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
+                    <p class="mt-3 text-gray-600 text-sm">${text}</p>
+                </div>
+            `;
+        }
+
         function getWorkspaceId() {
             return document.getElementById('workspace-selector').value;
         }

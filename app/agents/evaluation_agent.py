@@ -56,8 +56,7 @@ class EvaluationAgent:
         parts.append(f"- Thumbs up: {feedback.thumbs_up}\n")
         parts.append(f"- AI predicted: {feedback.ai_insight.category}\n")
         parts.append(f"- Correct category: {feedback.correct_category}\n")
-        parts.append(f"- User reasoning: {feedback.reasoning}\n")
-        parts.append(f"- User note: {feedback.note}\n\n")
+        parts.append(f"- User reasoning: {feedback.reasoning}\n\n")
 
         parts.append("## Current Category Definitions\n")
         for cat in categories:

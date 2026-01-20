@@ -45,7 +45,6 @@ def test_feedback_creation():
         thumbs_up=False,
         correct_category="Unplanned Price Sensitive",
         reasoning="This was an unexpected announcement",
-        note="The AI missed the unplanned nature",
         ai_insight=AIInsight(
             category="Planned Price Sensitive",
             reasoning_table=[],

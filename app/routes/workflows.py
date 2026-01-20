@@ -28,7 +28,6 @@ class FeedbackRequest(BaseModel):
     thumbs_up: bool
     correct_category: str
     reasoning: str
-    note: str
     ai_insight: AIInsight
 
 
@@ -89,7 +88,6 @@ def submit_feedback(
         thumbs_up=request.thumbs_up,
         correct_category=request.correct_category,
         reasoning=request.reasoning,
-        note=request.note,
         ai_insight=request.ai_insight,
         created_at=datetime.now(),
     )

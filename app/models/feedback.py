@@ -21,7 +21,6 @@ class Feedback(BaseModel):
     thumbs_up: bool
     correct_category: str
     reasoning: str
-    note: str
     ai_insight: AIInsight
     created_at: datetime
 

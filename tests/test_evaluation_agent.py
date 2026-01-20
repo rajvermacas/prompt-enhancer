@@ -19,7 +19,6 @@ def test_evaluation_agent_builds_prompt():
         thumbs_up=False,
         correct_category="Cat2",
         reasoning="Wrong category",
-        note="Should be Cat2",
         ai_insight=AIInsight(category="Cat1", reasoning_table=[], confidence=0.8),
         created_at=datetime.now(),
     )

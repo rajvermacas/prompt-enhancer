@@ -46,14 +46,21 @@ class AnalysisAgent:
     ) -> str:
         parts = ["## Category Definitions\n"]
 
-        allowed = [cat.name for cat in categories]
-        parts.append("Allowed categories (must match exactly):\n")
-        for name in allowed:
-            parts.append(f"- {name}\n")
-        parts.append("\n")
+        parts.append(
+            "CRITICAL: Category names may be arbitrary or misleading. "
+            "You MUST classify based ONLY on the definition text, NOT the category name. "
+            "Match the news content against each definition and select the category "
+            "whose DEFINITION best describes the content.\n\n"
+        )
 
         for cat in categories:
-            parts.append(f"### {cat.name}\n{cat.definition}\n")
+            parts.append(f"### {cat.name}\n")
+            parts.append(f"**Definition (use this for classification):** {cat.definition}\n\n")
+
+        allowed = [cat.name for cat in categories]
+        parts.append("Allowed category names for output (must match exactly):\n")
+        for name in allowed:
+            parts.append(f"- {name}\n")
 
         if few_shots:
             parts.append("\n## Examples\n")
@@ -71,8 +78,11 @@ class AnalysisAgent:
         parts.append("- confidence: float between 0 and 1\n")
         parts.append(
             "\nRules:\n"
-            "- category MUST be one of the Allowed categories listed above (exact match)\n"
+            "- IGNORE category names when deciding classification - use ONLY the definition text\n"
+            "- category MUST be one of the Allowed category names listed above (exact match)\n"
             "- category_excerpt MUST be verbatim from the chosen category definition\n"
+            "- If the news is semantically neutral but a category is DEFINED as 'neutral news', "
+            "select that category regardless of what the category is named\n"
         )
 
         return "".join(parts)

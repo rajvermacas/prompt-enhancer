@@ -20,7 +20,7 @@ def test_analysis_agent_builds_prompt():
 
     prompt = agent._build_prompt(categories, few_shots, "Test article content")
 
-    assert "Allowed categories" in prompt
+    assert "Allowed category names" in prompt
     assert "Cat1" in prompt
     assert "Definition 1" in prompt
     assert "News 1" in prompt

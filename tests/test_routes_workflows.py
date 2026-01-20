@@ -90,7 +90,6 @@ def test_submit_feedback(client, workspace_id):
                 "thumbs_up": True,
                 "correct_category": "Cat1",
                 "reasoning": "Correct",
-                "note": "Good",
                 "ai_insight": {
                     "category": "Cat1",
                     "reasoning_table": [],
