@@ -397,41 +397,63 @@
                 .map(item => item.example.id);
 
             document.getElementById('suggestions-content').innerHTML = `
-                <h3 class="font-semibold mt-4 text-black">Category Suggestions</h3>
-                <ul class="list-disc pl-5 text-gray-700">
-                    ${categorySuggestions.map(s => `<li><span class="font-medium">${s.category}:</span> ${s.rationale}</li>`).join('')}
-                </ul>
-                <h3 class="font-semibold mt-4 text-black">Priority</h3>
-                <ol class="list-decimal pl-5 text-gray-700">
-                    ${priorityOrder.map(p => `<li>${p}</li>`).join('')}
-                </ol>
-                <details class="mt-4">
-                    <summary class="font-semibold cursor-pointer text-black hover:text-red-600">Updated Categories (changed only)</summary>
-                    <div class="mt-2 space-y-2">
-                        <textarea id="updated-categories-text" readonly
-                                  class="w-full h-40 border border-gray-300 rounded p-2 text-sm bg-gray-50"></textarea>
-                        <div id="updated-categories-note" class="text-xs text-gray-500"></div>
-                        <button id="copy-updated-categories"
-                                onclick="copyText('updated-categories-text')"
-                                class="bg-gray-700 text-white px-3 py-1 rounded hover:bg-gray-800">
-                            Copy
-                        </button>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-semibold text-gray-900 mb-3">Category Suggestions</h3>
+                        <ul class="space-y-2">
+                            ${categorySuggestions.map(s => `
+                                <li class="flex gap-3 text-sm">
+                                    <span class="font-medium text-gray-900 flex-shrink-0">${s.category}:</span>
+                                    <span class="text-gray-600">${s.rationale}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
                     </div>
-                </details>
-                <details class="mt-4">
-                    <summary class="font-semibold cursor-pointer text-black hover:text-red-600">Updated Few-Shot Examples (changed only)</summary>
-                    <div class="mt-2 space-y-2">
-                        <textarea id="updated-fewshots-text" readonly
-                                  class="w-full h-56 border border-gray-300 rounded p-2 text-sm bg-gray-50"></textarea>
-                        <div id="updated-fewshots-note" class="text-xs text-gray-500"></div>
-                        <button id="copy-updated-fewshots"
-                                onclick="copyText('updated-fewshots-text')"
-                                class="bg-gray-700 text-white px-3 py-1 rounded hover:bg-gray-800">
-                            Copy
-                        </button>
-                        <div id="updated-fewshots-removals" class="text-sm text-gray-600"></div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900 mb-3">Priority Order</h3>
+                        <ol class="space-y-1.5">
+                            ${priorityOrder.map((p, i) => `
+                                <li class="flex items-center gap-3 text-sm">
+                                    <span class="w-6 h-6 flex items-center justify-center bg-red-100 text-red-700 rounded-full text-xs font-medium">${i + 1}</span>
+                                    <span class="text-gray-700">${p}</span>
+                                </li>
+                            `).join('')}
+                        </ol>
                     </div>
-                </details>
+                    <details class="group border border-gray-200 rounded-xl overflow-hidden">
+                        <summary class="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-150">
+                            <span class="font-medium text-gray-900">Updated Categories</span>
+                            <svg class="w-5 h-5 text-gray-500 transform group-open:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </summary>
+                        <div class="p-4 space-y-3">
+                            <textarea id="updated-categories-text" readonly
+                                      class="w-full h-40 border border-gray-200 rounded-lg p-3 text-sm bg-gray-50 focus:outline-none resize-none"></textarea>
+                            <div id="updated-categories-note" class="text-xs text-gray-500"></div>
+                            <button id="copy-updated-categories"
+                                    onclick="copyText('updated-categories-text')"
+                                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors duration-150">
+                                Copy to clipboard
+                            </button>
+                        </div>
+                    </details>
+                    <details class="group border border-gray-200 rounded-xl overflow-hidden">
+                        <summary class="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-150">
+                            <span class="font-medium text-gray-900">Updated Few-Shot Examples</span>
+                            <svg class="w-5 h-5 text-gray-500 transform group-open:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </summary>
+                        <div class="p-4 space-y-3">
+                            <textarea id="updated-fewshots-text" readonly
+                                      class="w-full h-56 border border-gray-200 rounded-lg p-3 text-sm bg-gray-50 focus:outline-none resize-none"></textarea>
+                            <div id="updated-fewshots-note" class="text-xs text-gray-500"></div>
+                            <button id="copy-updated-fewshots"
+                                    onclick="copyText('updated-fewshots-text')"
+                                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors duration-150">
+                                Copy to clipboard
+                            </button>
+                            <div id="updated-fewshots-removals" class="text-sm text-gray-600"></div>
+                        </div>
+                    </details>
+                </div>
             `;
 
             const updatedCategoriesTextArea = document.getElementById('updated-categories-text');
