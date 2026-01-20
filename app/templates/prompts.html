@@ -3,17 +3,17 @@
 {% block title %}Prompts - Prompt Enhancer{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold mb-6">Prompt Editor</h1>
+<h1 class="text-2xl font-bold mb-6 text-black">Prompt Editor</h1>
 
 <div class="bg-white rounded-lg shadow">
-    <div class="border-b">
+    <div class="border-b border-gray-200">
         <nav class="flex">
             <button onclick="showTab('categories')" id="tab-categories"
-                    class="px-6 py-3 border-b-2 border-blue-600 text-blue-600">
+                    class="px-6 py-3 border-b-2 border-red-600 text-red-600">
                 Category Definitions
             </button>
             <button onclick="showTab('fewshots')" id="tab-fewshots"
-                    class="px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    class="px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-black">
                 Few-Shot Examples
             </button>
         </nav>
@@ -21,14 +21,14 @@
 
     <div id="panel-categories" class="p-6">
         <div id="categories-list" class="space-y-4 mb-4"></div>
-        <button onclick="addCategory()" class="bg-blue-600 text-white px-4 py-2 rounded">+ Add Category</button>
-        <button onclick="saveCategories()" class="bg-green-600 text-white px-4 py-2 rounded ml-2">Save</button>
+        <button onclick="addCategory()" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800">+ Add Category</button>
+        <button onclick="saveCategories()" class="bg-gray-800 text-white px-4 py-2 rounded ml-2 hover:bg-black">Save</button>
     </div>
 
     <div id="panel-fewshots" class="p-6 hidden">
         <div id="fewshots-list" class="space-y-4 mb-4"></div>
-        <button onclick="addFewShot()" class="bg-blue-600 text-white px-4 py-2 rounded">+ Add Example</button>
-        <button onclick="saveFewShots()" class="bg-green-600 text-white px-4 py-2 rounded ml-2">Save</button>
+        <button onclick="addFewShot()" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800">+ Add Example</button>
+        <button onclick="saveFewShots()" class="bg-gray-800 text-white px-4 py-2 rounded ml-2 hover:bg-black">Save</button>
     </div>
 </div>
 {% endblock %}
@@ -41,12 +41,12 @@
     function showTab(tab) {
         document.getElementById('panel-categories').classList.toggle('hidden', tab !== 'categories');
         document.getElementById('panel-fewshots').classList.toggle('hidden', tab !== 'fewshots');
-        document.getElementById('tab-categories').classList.toggle('border-blue-600', tab === 'categories');
-        document.getElementById('tab-categories').classList.toggle('text-blue-600', tab === 'categories');
+        document.getElementById('tab-categories').classList.toggle('border-red-600', tab === 'categories');
+        document.getElementById('tab-categories').classList.toggle('text-red-600', tab === 'categories');
         document.getElementById('tab-categories').classList.toggle('border-transparent', tab !== 'categories');
         document.getElementById('tab-categories').classList.toggle('text-gray-500', tab !== 'categories');
-        document.getElementById('tab-fewshots').classList.toggle('border-blue-600', tab === 'fewshots');
-        document.getElementById('tab-fewshots').classList.toggle('text-blue-600', tab === 'fewshots');
+        document.getElementById('tab-fewshots').classList.toggle('border-red-600', tab === 'fewshots');
+        document.getElementById('tab-fewshots').classList.toggle('text-red-600', tab === 'fewshots');
         document.getElementById('tab-fewshots').classList.toggle('border-transparent', tab !== 'fewshots');
         document.getElementById('tab-fewshots').classList.toggle('text-gray-500', tab !== 'fewshots');
     }
