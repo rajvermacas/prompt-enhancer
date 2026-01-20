@@ -68,3 +68,46 @@ def test_improvement_agent_parses_updated_fields():
 
     assert result.updated_categories[0].category == "Cat1"
     assert result.updated_few_shots[0].action == "add"
+
+
+def test_improvement_agent_backfills_updated_few_shots():
+    """ImprovementAgent backfills updated few-shots from suggestions."""
+    from app.agents.improvement_agent import ImprovementAgent
+
+    mock_llm = MagicMock()
+    agent = ImprovementAgent(llm=mock_llm)
+
+    raw_response = '''{
+        "category_suggestions": [],
+        "few_shot_suggestions": [
+            {
+                "action": "add",
+                "details": {
+                    "id": "example_positive_1",
+                    "fields": {
+                        "text": "Company X reports record earnings.",
+                        "category": "Positive News",
+                        "explanation": "Strong earnings indicate positive sentiment."
+                    }
+                }
+            }
+        ],
+        "priority_order": [],
+        "updated_few_shots": [
+            {
+                "action": "add",
+                "example": {
+                    "id": "example_positive_1",
+                    "news_content": null,
+                    "category": null,
+                    "reasoning": null
+                }
+            }
+        ]
+    }'''
+
+    result = agent._parse_response(raw_response)
+
+    assert result.updated_few_shots[0].example.news_content == "Company X reports record earnings."
+    assert result.updated_few_shots[0].example.category == "Positive News"
+    assert result.updated_few_shots[0].example.reasoning == "Strong earnings indicate positive sentiment."

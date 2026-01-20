@@ -88,10 +88,88 @@ class ImprovementAgent:
             cleaned = cleaned[:-3]
 
         data = json.loads(cleaned.strip())
+        few_shot_suggestions = data.get("few_shot_suggestions", [])
+        updated_few_shots = data.get("updated_few_shots", [])
+
+        def extract_fields(details: dict) -> dict:
+            fields = details.get("fields")
+            if isinstance(fields, dict):
+                return fields
+            return details
+
+        def is_missing(value: object) -> bool:
+            if value is None:
+                return True
+            if isinstance(value, str):
+                return value.strip() == ""
+            return False
+
+        def build_suggestion_map(items: list) -> dict:
+            mapped: dict[str, dict] = {}
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                action = item.get("action")
+                details = item.get("details")
+                if not isinstance(details, dict):
+                    continue
+                fields = extract_fields(details)
+                example_id = details.get("id") or item.get("id")
+                if not isinstance(example_id, str) or example_id.strip() == "":
+                    continue
+                mapped[example_id] = {
+                    "action": action,
+                    "example": {
+                        "id": example_id,
+                        "news_content": fields.get("news_content") or fields.get("text"),
+                        "category": fields.get("category"),
+                        "reasoning": fields.get("reasoning") or fields.get("explanation"),
+                    },
+                }
+            return mapped
+
+        if isinstance(updated_few_shots, list):
+            suggestion_map = build_suggestion_map(
+                few_shot_suggestions if isinstance(few_shot_suggestions, list) else []
+            )
+            normalized: list[dict] = []
+            for item in updated_few_shots:
+                if not isinstance(item, dict):
+                    continue
+                action = item.get("action")
+                example = item.get("example")
+                if not isinstance(example, dict):
+                    example = {}
+                example_id = example.get("id") or item.get("id")
+                if isinstance(example_id, str) and example_id.strip():
+                    example["id"] = example_id
+                if action != "remove":
+                    news_content = example.get("news_content")
+                    category = example.get("category")
+                    reasoning = example.get("reasoning")
+                    if (
+                        is_missing(news_content)
+                        or is_missing(category)
+                        or is_missing(reasoning)
+                    ):
+                        fallback = suggestion_map.get(example.get("id"))
+                        if fallback:
+                            fallback_example = fallback.get("example", {})
+                            if is_missing(example.get("news_content")):
+                                example["news_content"] = fallback_example.get("news_content")
+                            if is_missing(example.get("category")):
+                                example["category"] = fallback_example.get("category")
+                            if is_missing(example.get("reasoning")):
+                                example["reasoning"] = fallback_example.get("reasoning")
+                normalized.append({"action": action, "example": example})
+            updated_few_shots = normalized
+        else:
+            updated_few_shots = []
+
         return ImprovementSuggestion(
             category_suggestions=data.get("category_suggestions", []),
-            few_shot_suggestions=data.get("few_shot_suggestions", []),
+            few_shot_suggestions=few_shot_suggestions,
             priority_order=data.get("priority_order", []),
             updated_categories=data.get("updated_categories", []),
-            updated_few_shots=data.get("updated_few_shots", []),
+            updated_few_shots=updated_few_shots,
         )
