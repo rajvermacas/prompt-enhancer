@@ -47,3 +47,24 @@ def test_improvement_agent_parses_response():
 
     assert len(result.category_suggestions) == 1
     assert result.priority_order[0] == "Fix Cat1 first"
+
+
+def test_improvement_agent_parses_updated_fields():
+    """ImprovementAgent parses updated categories and few-shots."""
+    from app.agents.improvement_agent import ImprovementAgent
+
+    mock_llm = MagicMock()
+    agent = ImprovementAgent(llm=mock_llm)
+
+    raw_response = '''{
+        "category_suggestions": [],
+        "few_shot_suggestions": [],
+        "priority_order": [],
+        "updated_categories": [{"category": "Cat1", "updated_definition": "New def"}],
+        "updated_few_shots": [{"action": "add", "example": {"id": "ex-1", "news_content": "News", "category": "Cat1", "reasoning": "Reason"}}]
+    }'''
+
+    result = agent._parse_response(raw_response)
+
+    assert result.updated_categories[0].category == "Cat1"
+    assert result.updated_few_shots[0].action == "add"
