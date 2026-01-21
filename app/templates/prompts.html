@@ -16,6 +16,10 @@
                     class="px-5 py-3 rounded-t-lg font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200">
                 Few-Shot Examples
             </button>
+            <button onclick="showTab('systemprompt')" id="tab-systemprompt"
+                    class="px-5 py-3 rounded-t-lg font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200">
+                System Prompt
+            </button>
             <!-- AI Improvement Suggestions tab (hidden for future release) -->
             <button onclick="showTab('suggestions')" id="tab-suggestions"
                     class="hidden px-5 py-3 rounded-t-lg font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center gap-2">
@@ -47,6 +51,20 @@
                 Save Changes
             </button>
         </div>
+    </div>
+
+    <div id="panel-systemprompt" class="p-6 hidden">
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Custom Instructions for AI Analysis</label>
+            <textarea id="system-prompt-content"
+                      class="w-full border border-gray-200 rounded-lg px-4 py-3 text-gray-700 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none transition-all duration-150 resize-none"
+                      rows="8"
+                      placeholder="Enter additional instructions for the AI analysis (e.g., 'Mention why other categories were not selected')"></textarea>
+            <p class="text-sm text-gray-500 mt-2">These instructions will be included in the AI analysis prompt. The response will appear in a "User-Requested Analysis" section.</p>
+        </div>
+        <button onclick="saveSystemPrompt()" class="bg-red-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-red-500 active:bg-red-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-2 focus:outline-none">
+            Save Changes
+        </button>
     </div>
 
     <div id="panel-suggestions" class="p-6 hidden">
@@ -163,6 +181,7 @@
     let suggestionsData = null;
     let feedbacksLoaded = false;
     let currentSuggestionView = 'by-type';
+    let systemPromptContent = '';
 
     function setSuggestionView(view) {
         currentSuggestionView = view;
@@ -185,8 +204,9 @@
         document.getElementById('panel-categories').classList.toggle('hidden', tab !== 'categories');
         document.getElementById('panel-fewshots').classList.toggle('hidden', tab !== 'fewshots');
         document.getElementById('panel-suggestions').classList.toggle('hidden', tab !== 'suggestions');
+        document.getElementById('panel-systemprompt').classList.toggle('hidden', tab !== 'systemprompt');
 
-        const tabs = ['categories', 'fewshots', 'suggestions'];
+        const tabs = ['categories', 'fewshots', 'suggestions', 'systemprompt'];
         tabs.forEach(t => {
             const tabEl = document.getElementById(`tab-${t}`);
             const isActive = t === tab;
@@ -268,6 +288,44 @@
                 fewShots = data.examples;
                 renderFewShots();
             });
+
+        loadSystemPrompt();
+    }
+
+    function loadSystemPrompt() {
+        const wsId = getWorkspaceId();
+        if (!wsId) return;
+
+        fetch(`/api/workspaces/${wsId}/prompts/system-prompt`)
+            .then(r => r.json())
+            .then(data => {
+                systemPromptContent = data.content || '';
+                document.getElementById('system-prompt-content').value = systemPromptContent;
+            });
+    }
+
+    function saveSystemPrompt() {
+        const wsId = getWorkspaceId();
+        if (!wsId) {
+            alert('Please select a workspace first');
+            return;
+        }
+
+        const content = document.getElementById('system-prompt-content').value;
+
+        fetch(`/api/workspaces/${wsId}/prompts/system-prompt`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({content})
+        })
+        .then(r => r.json())
+        .then(() => {
+            systemPromptContent = content;
+            alert('System prompt saved!');
+        })
+        .catch(err => {
+            alert('Error saving system prompt: ' + err.message);
+        });
     }
 
     function renderCategories() {
