@@ -55,3 +55,11 @@ def test_news_article_without_date():
     )
 
     assert article.date is None
+
+
+def test_news_source_enum_values():
+    """NewsSource enum has merge and replace values."""
+    from app.models.news import NewsSource
+
+    assert NewsSource.MERGE.value == "merge"
+    assert NewsSource.REPLACE.value == "replace"

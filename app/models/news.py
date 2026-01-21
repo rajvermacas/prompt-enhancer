@@ -1,4 +1,11 @@
+from enum import Enum
+
 from pydantic import BaseModel
+
+
+class NewsSource(str, Enum):
+    MERGE = "merge"
+    REPLACE = "replace"
 
 
 class NewsArticle(BaseModel):
