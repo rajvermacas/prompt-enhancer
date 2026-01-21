@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import get_settings, get_workspace_service
-from app.models.prompts import FewShotConfig, PromptConfig
+from app.models.prompts import FewShotConfig, PromptConfig, SystemPromptConfig
 from app.services.prompt_service import PromptService
 from app.services.workspace_service import WorkspaceNotFoundError, WorkspaceService
 
@@ -48,4 +48,18 @@ def save_few_shots(
     service: PromptService = Depends(get_prompt_service),
 ):
     service.save_few_shots(config)
+    return config
+
+
+@router.get("/system-prompt", response_model=SystemPromptConfig)
+def get_system_prompt(service: PromptService = Depends(get_prompt_service)):
+    return service.get_system_prompt()
+
+
+@router.put("/system-prompt", response_model=SystemPromptConfig)
+def save_system_prompt(
+    config: SystemPromptConfig,
+    service: PromptService = Depends(get_prompt_service),
+):
+    service.save_system_prompt(config)
     return config

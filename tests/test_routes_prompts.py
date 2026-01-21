@@ -84,3 +84,37 @@ def test_save_few_shots(client, workspace_id):
 
     assert response.status_code == 200
     assert len(response.json()["examples"]) == 1
+
+
+def test_get_system_prompt_empty(client, workspace_id):
+    """GET system-prompt returns empty content initially."""
+    response = client.get(f"/api/workspaces/{workspace_id}/prompts/system-prompt")
+
+    assert response.status_code == 200
+    assert response.json()["content"] == ""
+
+
+def test_save_system_prompt(client, workspace_id):
+    """PUT system-prompt saves and returns content."""
+    payload = {"content": "Mention why other categories were not selected"}
+
+    response = client.put(
+        f"/api/workspaces/{workspace_id}/prompts/system-prompt",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["content"] == "Mention why other categories were not selected"
+
+
+def test_get_system_prompt_after_save(client, workspace_id):
+    """GET system-prompt returns saved content."""
+    client.put(
+        f"/api/workspaces/{workspace_id}/prompts/system-prompt",
+        json={"content": "Custom instructions here"},
+    )
+
+    response = client.get(f"/api/workspaces/{workspace_id}/prompts/system-prompt")
+
+    assert response.status_code == 200
+    assert response.json()["content"] == "Custom instructions here"
