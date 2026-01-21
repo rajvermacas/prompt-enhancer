@@ -72,3 +72,27 @@ def test_save_few_shots(workspace_dir):
 
     assert len(loaded.examples) == 1
     assert loaded.examples[0].id == "ex-001"
+
+
+def test_get_system_prompt_returns_empty_when_file_missing(workspace_dir):
+    """PromptService returns empty content when system_prompt.json doesn't exist."""
+    from app.services.prompt_service import PromptService
+
+    service = PromptService(workspace_dir)
+    config = service.get_system_prompt()
+
+    assert config.content == ""
+
+
+def test_save_system_prompt(workspace_dir):
+    """PromptService saves system prompt content."""
+    from app.models.prompts import SystemPromptConfig
+    from app.services.prompt_service import PromptService
+
+    service = PromptService(workspace_dir)
+    config = SystemPromptConfig(content="Explain why other categories were rejected")
+
+    service.save_system_prompt(config)
+    loaded = service.get_system_prompt()
+
+    assert loaded.content == "Explain why other categories were rejected"
