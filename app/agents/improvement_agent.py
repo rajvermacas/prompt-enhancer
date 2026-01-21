@@ -24,6 +24,12 @@ Respond with a JSON object containing:
 
 Rules:
 - Return ONLY valid JSON (no markdown).
+- CRITICAL: updated_categories must directly correspond to category_suggestions.
+  For each entry in category_suggestions, include the matching entry in updated_categories
+  with the "suggested" definition as "updated_definition". Use the exact same category name.
+- CRITICAL: updated_few_shots must directly correspond to few_shot_suggestions.
+  For each entry in few_shot_suggestions, include the matching entry in updated_few_shots
+  with complete example data. Use the exact same id.
 - For updated_categories, include only entries with a non-empty updated_definition.
 - For updated_few_shots, include add/modify entries only if example has non-empty
   news_content, category, and reasoning.

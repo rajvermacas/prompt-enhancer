@@ -95,28 +95,34 @@
             <!-- Updated Categories (Collapsible) -->
             <div class="border border-gray-200 rounded-xl">
                 <button onclick="toggleSection('updated-categories')" class="w-full flex items-center justify-between p-5 text-left">
-                    <h3 class="text-lg font-semibold text-gray-900">Updated Categories</h3>
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-lg font-semibold text-gray-900">Updated Categories</h3>
+                        <span id="updated-categories-count" class="text-sm text-gray-500"></span>
+                    </div>
                     <span id="updated-categories-arrow" class="text-gray-400 transition-transform duration-200">&#9654;</span>
                 </button>
                 <div id="updated-categories" class="hidden px-5 pb-5">
                     <div class="flex justify-end mb-3">
-                        <button onclick="copyUpdatedCategories()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy to clipboard</button>
+                        <button onclick="copyUpdatedCategories()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy JSON to clipboard</button>
                     </div>
-                    <pre id="updated-categories-content" class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 overflow-x-auto"></pre>
+                    <div id="updated-categories-content" class="space-y-3"></div>
                 </div>
             </div>
 
             <!-- Updated Few-Shot Examples (Collapsible) -->
             <div class="border border-gray-200 rounded-xl">
                 <button onclick="toggleSection('updated-fewshots')" class="w-full flex items-center justify-between p-5 text-left">
-                    <h3 class="text-lg font-semibold text-gray-900">Updated Few-Shot Examples</h3>
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-lg font-semibold text-gray-900">Updated Few-Shot Examples</h3>
+                        <span id="updated-fewshots-count" class="text-sm text-gray-500"></span>
+                    </div>
                     <span id="updated-fewshots-arrow" class="text-gray-400 transition-transform duration-200">&#9654;</span>
                 </button>
                 <div id="updated-fewshots" class="hidden px-5 pb-5">
                     <div class="flex justify-end mb-3">
-                        <button onclick="copyUpdatedFewShots()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy to clipboard</button>
+                        <button onclick="copyUpdatedFewShots()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy JSON to clipboard</button>
                     </div>
-                    <pre id="updated-fewshots-content" class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 overflow-x-auto"></pre>
+                    <div id="updated-fewshots-content" class="space-y-3"></div>
                 </div>
             </div>
         </div>
@@ -441,20 +447,96 @@
 
     function renderUpdatedCategories(updatedCategories) {
         const container = document.getElementById('updated-categories-content');
+        const countEl = document.getElementById('updated-categories-count');
+
         if (!updatedCategories || updatedCategories.length === 0) {
-            container.textContent = 'No updated categories.';
+            container.innerHTML = '<p class="text-gray-500 text-sm">No updated categories.</p>';
+            countEl.textContent = '';
             return;
         }
-        container.textContent = JSON.stringify(updatedCategories, null, 2);
+
+        countEl.textContent = `${updatedCategories.length} update${updatedCategories.length !== 1 ? 's' : ''}`;
+
+        container.innerHTML = updatedCategories.map(cat => `
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        ${escapeHtml(cat.category)}
+                    </span>
+                </div>
+                <div class="text-sm text-gray-700">
+                    <span class="font-medium text-gray-900">Updated definition:</span>
+                    <p class="mt-1 whitespace-pre-wrap">${escapeHtml(cat.updated_definition)}</p>
+                </div>
+            </div>
+        `).join('');
     }
 
     function renderUpdatedFewShots(updatedFewShots) {
         const container = document.getElementById('updated-fewshots-content');
+        const countEl = document.getElementById('updated-fewshots-count');
+
         if (!updatedFewShots || updatedFewShots.length === 0) {
-            container.textContent = 'No updated few-shot examples.';
+            container.innerHTML = '<p class="text-gray-500 text-sm">No updated few-shot examples.</p>';
+            countEl.textContent = '';
             return;
         }
-        container.textContent = JSON.stringify(updatedFewShots, null, 2);
+
+        countEl.textContent = `${updatedFewShots.length} update${updatedFewShots.length !== 1 ? 's' : ''}`;
+
+        const actionColors = {
+            add: 'bg-green-100 text-green-800',
+            modify: 'bg-yellow-100 text-yellow-800',
+            remove: 'bg-red-100 text-red-800'
+        };
+
+        container.innerHTML = updatedFewShots.map(item => {
+            const action = item.action || 'modify';
+            const example = item.example || {};
+            const colorClass = actionColors[action] || 'bg-gray-100 text-gray-800';
+
+            if (action === 'remove') {
+                return `
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}">
+                                ${escapeHtml(action.toUpperCase())}
+                            </span>
+                            <span class="text-sm font-medium text-gray-900">${escapeHtml(example.id || 'Unknown ID')}</span>
+                        </div>
+                        <p class="text-sm text-gray-500 italic">This example will be removed</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}">
+                            ${escapeHtml(action.toUpperCase())}
+                        </span>
+                        <span class="text-sm font-medium text-gray-700">${escapeHtml(example.id || 'New Example')}</span>
+                        ${example.category ? `
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                ${escapeHtml(example.category)}
+                            </span>
+                        ` : ''}
+                    </div>
+                    ${example.news_content ? `
+                        <div class="mb-3">
+                            <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">News Content</span>
+                            <p class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(example.news_content)}</p>
+                        </div>
+                    ` : ''}
+                    ${example.reasoning ? `
+                        <div>
+                            <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Reasoning</span>
+                            <p class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(example.reasoning)}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
     }
 
     function toggleSection(sectionId) {
@@ -465,13 +547,21 @@
     }
 
     function copyUpdatedCategories() {
-        const content = document.getElementById('updated-categories-content').textContent;
-        navigator.clipboard.writeText(content).then(() => alert('Copied to clipboard!'));
+        if (!suggestionsData || !suggestionsData.suggestions.updated_categories) {
+            alert('No updated categories to copy');
+            return;
+        }
+        const json = JSON.stringify(suggestionsData.suggestions.updated_categories, null, 2);
+        navigator.clipboard.writeText(json).then(() => alert('Copied JSON to clipboard!'));
     }
 
     function copyUpdatedFewShots() {
-        const content = document.getElementById('updated-fewshots-content').textContent;
-        navigator.clipboard.writeText(content).then(() => alert('Copied to clipboard!'));
+        if (!suggestionsData || !suggestionsData.suggestions.updated_few_shots) {
+            alert('No updated few-shot examples to copy');
+            return;
+        }
+        const json = JSON.stringify(suggestionsData.suggestions.updated_few_shots, null, 2);
+        navigator.clipboard.writeText(json).then(() => alert('Copied JSON to clipboard!'));
     }
 
     document.getElementById('workspace-selector').addEventListener('change', () => {
