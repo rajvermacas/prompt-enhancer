@@ -131,6 +131,179 @@
     window.chatStreaming = {};
     window.chatAbortControllers = {};
 
+    // Upload modal state
+    let selectedFile = null;
+    let currentTab = localStorage.getItem('uploadTab') || 'csv';
+
+    function openUploadModal() {
+        const wsId = getWorkspaceId();
+        if (!wsId) {
+            alert('Please select a workspace first');
+            return;
+        }
+
+        document.getElementById('upload-modal').classList.remove('hidden');
+        document.getElementById('upload-modal').classList.add('flex');
+
+        // Load current news source preference
+        fetch(`/api/workspaces/${wsId}/news-source`)
+            .then(r => r.json())
+            .then(data => {
+                const radios = document.querySelectorAll('input[name="news-source"]');
+                radios.forEach(r => r.checked = r.value === data.news_source);
+            });
+
+        // Restore last tab
+        switchTab(currentTab);
+    }
+
+    function closeUploadModal() {
+        document.getElementById('upload-modal').classList.add('hidden');
+        document.getElementById('upload-modal').classList.remove('flex');
+        resetUploadForm();
+    }
+
+    function resetUploadForm() {
+        selectedFile = null;
+        document.getElementById('csv-file-input').value = '';
+        document.getElementById('csv-filename').textContent = 'Drop CSV file here or click to browse';
+        document.getElementById('article-headline').value = '';
+        document.getElementById('article-date').value = '';
+        document.getElementById('article-content').value = '';
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        localStorage.setItem('uploadTab', tab);
+
+        // Update tab buttons
+        document.getElementById('tab-csv').classList.toggle('text-red-600', tab === 'csv');
+        document.getElementById('tab-csv').classList.toggle('border-b-2', tab === 'csv');
+        document.getElementById('tab-csv').classList.toggle('border-red-600', tab === 'csv');
+        document.getElementById('tab-csv').classList.toggle('text-gray-500', tab !== 'csv');
+
+        document.getElementById('tab-single').classList.toggle('text-red-600', tab === 'single');
+        document.getElementById('tab-single').classList.toggle('border-b-2', tab === 'single');
+        document.getElementById('tab-single').classList.toggle('border-red-600', tab === 'single');
+        document.getElementById('tab-single').classList.toggle('text-gray-500', tab !== 'single');
+
+        // Update content
+        document.getElementById('content-csv').classList.toggle('hidden', tab !== 'csv');
+        document.getElementById('content-single').classList.toggle('hidden', tab !== 'single');
+
+        // Update button text
+        document.getElementById('upload-submit-btn').textContent = tab === 'csv' ? 'Upload' : 'Save';
+    }
+
+    function handleFileSelect(input) {
+        if (input.files && input.files[0]) {
+            selectedFile = input.files[0];
+            document.getElementById('csv-filename').textContent = selectedFile.name;
+        }
+    }
+
+    function updateNewsSource(value) {
+        const wsId = getWorkspaceId();
+        fetch(`/api/workspaces/${wsId}/news-source`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({news_source: value})
+        });
+    }
+
+    function submitUpload() {
+        if (currentTab === 'csv') {
+            submitCSVUpload();
+        } else {
+            submitSingleArticle();
+        }
+    }
+
+    function submitCSVUpload() {
+        if (!selectedFile) {
+            alert('Please select a CSV file');
+            return;
+        }
+
+        const wsId = getWorkspaceId();
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        const btn = document.getElementById('upload-submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Uploading...';
+
+        fetch(`/api/workspaces/${wsId}/news/upload-csv`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => {
+            if (!r.ok) return r.json().then(e => Promise.reject(e));
+            return r.json();
+        })
+        .then(data => {
+            alert(`Successfully uploaded ${data.count} articles`);
+            closeUploadModal();
+            loadNews();
+        })
+        .catch(err => {
+            alert('Upload failed: ' + (err.detail || err.message || 'Unknown error'));
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = 'Upload';
+        });
+    }
+
+    function submitSingleArticle() {
+        const headline = document.getElementById('article-headline').value.trim();
+        const date = document.getElementById('article-date').value.trim();
+        const content = document.getElementById('article-content').value.trim();
+
+        if (!headline || !date || !content) {
+            alert('All fields are required');
+            return;
+        }
+
+        const wsId = getWorkspaceId();
+        const btn = document.getElementById('upload-submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        fetch(`/api/workspaces/${wsId}/news`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({headline, content, date})
+        })
+        .then(r => {
+            if (!r.ok) return r.json().then(e => Promise.reject(e));
+            return r.json();
+        })
+        .then(data => {
+            alert('Article added successfully');
+            closeUploadModal();
+            loadNews();
+        })
+        .catch(err => {
+            alert('Failed to add article: ' + (err.detail || err.message || 'Unknown error'));
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+        });
+    }
+
+    // Show/hide upload button based on workspace selection
+    function updateUploadButtonVisibility() {
+        const wsId = getWorkspaceId();
+        const btn = document.getElementById('upload-news-btn');
+        if (wsId) {
+            btn.classList.remove('hidden');
+        } else {
+            btn.classList.add('hidden');
+        }
+    }
+
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -169,10 +342,29 @@
     // Load news on page load
     document.addEventListener('DOMContentLoaded', function() {
         loadNews();
+        updateUploadButtonVisibility();
+
+        // Watch for workspace changes
+        const observer = new MutationObserver(() => {
+            updateUploadButtonVisibility();
+            loadNews();
+        });
+        const wsSelect = document.getElementById('workspace-select');
+        if (wsSelect) {
+            wsSelect.addEventListener('change', () => {
+                updateUploadButtonVisibility();
+                loadNews();
+            });
+        }
     });
 
     function loadNews() {
-        fetch('/api/news?page=1&limit=20')
+        const wsId = getWorkspaceId();
+        const url = wsId
+            ? `/api/workspaces/${wsId}/news?page=1&limit=20`
+            : '/api/news?page=1&limit=20';
+
+        fetch(url)
             .then(r => r.json())
             .then(data => {
                 renderNewsList(data);
