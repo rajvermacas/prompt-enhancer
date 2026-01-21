@@ -63,15 +63,19 @@ def test_analyze_article_no_categories_returns_400(client):
 
 def test_analyze_article(client, workspace_id):
     """POST /api/workspaces/{id}/analyze runs analysis agent."""
-    mock_insight = {
-        "category": "Cat1",
-        "reasoning_table": [],
-        "confidence": 0.9,
-    }
+    from app.models.feedback import AIInsight
+
+    mock_insight = AIInsight(
+        category="Cat1",
+        reasoning_table=[],
+        confidence=0.9,
+    )
 
     with patch("app.routes.workflows.get_llm") as mock_get_llm:
         mock_llm = MagicMock()
-        mock_llm.invoke.return_value.content = str(mock_insight).replace("'", '"')
+        mock_structured_llm = MagicMock()
+        mock_llm.with_structured_output.return_value = mock_structured_llm
+        mock_structured_llm.invoke.return_value = mock_insight
         mock_get_llm.return_value = mock_llm
 
         response = client.post(

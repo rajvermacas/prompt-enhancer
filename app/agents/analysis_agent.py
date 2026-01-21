@@ -1,9 +1,7 @@
-import json
-
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.models.feedback import AIInsight, ReasoningRow
+from app.models.feedback import AIInsight, AIInsightWithUserAnalysis
 from app.models.prompts import CategoryDefinition, FewShotExample
 
 
@@ -17,14 +15,20 @@ class AnalysisAgent:
         categories: list[CategoryDefinition],
         few_shots: list[FewShotExample],
         article_content: str,
-    ) -> AIInsight:
-        prompt = self._build_prompt(categories, few_shots, article_content)
+        custom_system_prompt: str | None = None,
+    ) -> AIInsight | AIInsightWithUserAnalysis:
+        prompt = self._build_prompt(categories, few_shots, article_content, custom_system_prompt)
         messages = [
             SystemMessage(content=self.system_prompt),
             HumanMessage(content=prompt),
         ]
-        response = self.llm.invoke(messages)
-        insight = self._parse_response(response.content)
+
+        if custom_system_prompt:
+            structured_llm = self.llm.with_structured_output(AIInsightWithUserAnalysis)
+        else:
+            structured_llm = self.llm.with_structured_output(AIInsight)
+
+        insight = structured_llm.invoke(messages)
 
         allowed_categories = {cat.name for cat in categories}
         if insight.category not in allowed_categories:
@@ -43,6 +47,7 @@ class AnalysisAgent:
         categories: list[CategoryDefinition],
         few_shots: list[FewShotExample],
         article_content: str,
+        custom_system_prompt: str | None = None,
     ) -> str:
         parts = ["## Category Definitions\n"]
 
@@ -76,6 +81,8 @@ class AnalysisAgent:
         parts.append("- category: the category name\n")
         parts.append("- reasoning_table: array of {category_excerpt, news_excerpt, reasoning}\n")
         parts.append("- confidence: float between 0 and 1\n")
+        if custom_system_prompt:
+            parts.append("- user_requested_analysis: your response to the Additional Instructions below\n")
         parts.append(
             "\nRules:\n"
             "- IGNORE category names when deciding classification - use ONLY the definition text\n"
@@ -85,29 +92,16 @@ class AnalysisAgent:
             "select that category regardless of what the category is named\n"
         )
 
+        if custom_system_prompt:
+            parts.append("\n## Additional Instructions\n")
+            parts.append(custom_system_prompt)
+            parts.append("\n\nRespond to these instructions in the `user_requested_analysis` field.\n")
+
         return "".join(parts)
-
-    def _parse_response(self, response: str) -> AIInsight:
-        cleaned = response.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        if cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-
-        data = json.loads(cleaned.strip())
-        return AIInsight(
-            category=data["category"],
-            reasoning_table=[
-                ReasoningRow(**row) for row in data["reasoning_table"]
-            ],
-            confidence=data["confidence"],
-        )
 
     def _coerce_category_from_excerpt(
         self,
-        insight: AIInsight,
+        insight: AIInsight | AIInsightWithUserAnalysis,
         categories: list[CategoryDefinition],
     ) -> str | None:
         if not insight.reasoning_table:
