@@ -1,3 +1,4 @@
+import csv
 import io
 
 import pytest
@@ -172,3 +173,77 @@ def test_set_news_source(workspaces_dir, workspace_with_metadata):
     source = service.get_news_source(workspace_with_metadata)
 
     assert source == NewsSource.REPLACE
+
+
+@pytest.fixture
+def default_news_csv(tmp_path):
+    """Create default news CSV."""
+    csv_path = tmp_path / "default_news.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["id", "headline", "content"])
+        writer.writeheader()
+        for i in range(5):
+            writer.writerow({
+                "id": f"default-{i}",
+                "headline": f"Default Headline {i}",
+                "content": f"Default content {i}"
+            })
+    return csv_path
+
+
+def test_get_news_merge_mode(workspaces_dir, workspace_with_metadata, default_news_csv):
+    """get_news returns merged default + uploaded news in merge mode."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+    service.add_article(workspace_with_metadata, "Uploaded", "Content", "2026-01-01")
+
+    response = service.get_news(workspace_with_metadata, page=1, limit=10)
+
+    assert response.total == 6  # 5 default + 1 uploaded
+    headlines = [a.headline for a in response.articles]
+    assert "Uploaded" in headlines
+    assert "Default Headline 0" in headlines
+
+
+def test_get_news_replace_mode_with_uploads(workspaces_dir, workspace_with_metadata, default_news_csv):
+    """get_news returns only uploaded news in replace mode when uploads exist."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+    from app.models.news import NewsSource
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+    service.add_article(workspace_with_metadata, "Uploaded", "Content", "2026-01-01")
+    service.set_news_source(workspace_with_metadata, NewsSource.REPLACE)
+
+    response = service.get_news(workspace_with_metadata, page=1, limit=10)
+
+    assert response.total == 1
+    assert response.articles[0].headline == "Uploaded"
+
+
+def test_get_news_replace_mode_fallback(workspaces_dir, workspace_with_metadata, default_news_csv):
+    """get_news falls back to default news in replace mode when no uploads."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+    from app.models.news import NewsSource
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+    service.set_news_source(workspace_with_metadata, NewsSource.REPLACE)
+
+    response = service.get_news(workspace_with_metadata, page=1, limit=10)
+
+    assert response.total == 5  # Falls back to default
+    assert response.articles[0].headline == "Default Headline 0"
+
+
+def test_get_news_pagination(workspaces_dir, workspace_with_metadata, default_news_csv):
+    """get_news respects pagination parameters."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+
+    response = service.get_news(workspace_with_metadata, page=2, limit=2)
+
+    assert len(response.articles) == 2
+    assert response.page == 2
+    assert response.limit == 2
+    assert response.total == 5

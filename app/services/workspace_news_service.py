@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import BinaryIO
 
-from app.models.news import NewsArticle, NewsSource
+from app.models.news import NewsArticle, NewsListResponse, NewsSource
 from app.models.workspace import WorkspaceMetadata
 
 
@@ -41,6 +41,59 @@ class WorkspaceNewsService:
         metadata = self._load_metadata(workspace_id)
         metadata.news_source = source
         self._save_metadata(workspace_id, metadata)
+
+    def _load_default_news(self) -> list[NewsArticle]:
+        articles = []
+        with open(self.default_news_path, newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                articles.append(NewsArticle(
+                    id=row["id"],
+                    headline=row["headline"],
+                    content=row["content"],
+                    date=row.get("date")
+                ))
+        return articles
+
+    def _load_uploaded_news(self, workspace_id: str) -> list[NewsArticle]:
+        csv_path = self._get_uploaded_news_path(workspace_id)
+        if not csv_path.exists():
+            return []
+
+        articles = []
+        with open(csv_path, newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                articles.append(NewsArticle(
+                    id=row["id"],
+                    headline=row["headline"],
+                    content=row["content"],
+                    date=row.get("date")
+                ))
+        return articles
+
+    def get_news(self, workspace_id: str, page: int, limit: int) -> NewsListResponse:
+        news_source = self.get_news_source(workspace_id)
+        uploaded = self._load_uploaded_news(workspace_id)
+
+        if news_source == NewsSource.REPLACE and uploaded:
+            articles = uploaded
+        elif news_source == NewsSource.REPLACE and not uploaded:
+            articles = self._load_default_news()
+        else:  # MERGE
+            articles = uploaded + self._load_default_news()
+
+        total = len(articles)
+        start = (page - 1) * limit
+        end = start + limit
+        page_articles = articles[start:end]
+
+        return NewsListResponse(
+            articles=page_articles,
+            total=total,
+            page=page,
+            limit=limit
+        )
 
     def add_article(
         self, workspace_id: str, headline: str, content: str, date: str
