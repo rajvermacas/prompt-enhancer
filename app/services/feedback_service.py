@@ -4,6 +4,12 @@ from pathlib import Path
 from app.models.feedback import EvaluationReport, Feedback
 
 
+class FeedbackNotFoundError(Exception):
+    def __init__(self, feedback_id: str):
+        self.feedback_id = feedback_id
+        super().__init__(f"Feedback not found: {feedback_id}")
+
+
 class FeedbackService:
     def __init__(self, workspace_dir: Path):
         self.workspace_dir = Path(workspace_dir)
@@ -21,6 +27,22 @@ class FeedbackService:
             with open(file_path) as f:
                 feedbacks.append(Feedback.model_validate(json.load(f)))
         return sorted(feedbacks, key=lambda fb: fb.created_at, reverse=True)
+
+    def delete_feedback(self, feedback_id: str) -> None:
+        feedback_path = self.feedback_dir / f"{feedback_id}.json"
+        if not feedback_path.exists():
+            raise FeedbackNotFoundError(feedback_id)
+
+        feedback_path.unlink()
+        self._delete_evaluation_report_for_feedback(feedback_id)
+
+    def _delete_evaluation_report_for_feedback(self, feedback_id: str) -> None:
+        for file_path in self.reports_dir.glob("*.json"):
+            with open(file_path) as f:
+                report = EvaluationReport.model_validate(json.load(f))
+            if report.feedback_id == feedback_id:
+                file_path.unlink()
+                break
 
     def save_evaluation_report(self, report: EvaluationReport) -> None:
         file_path = self.reports_dir / f"{report.id}.json"

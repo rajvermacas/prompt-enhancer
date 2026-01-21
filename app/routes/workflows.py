@@ -22,7 +22,7 @@ from app.models.feedback import (
     ImprovementSuggestion,
     ImprovementSuggestionResponse,
 )
-from app.services.feedback_service import FeedbackService
+from app.services.feedback_service import FeedbackNotFoundError, FeedbackService
 from app.services.news_service import ArticleNotFoundError, NewsService
 from app.services.prompt_service import PromptService
 from app.services.workspace_service import WorkspaceNotFoundError, WorkspaceService
@@ -132,6 +132,50 @@ def list_feedback(
     feedback_service = FeedbackService(workspace_dir)
 
     return feedback_service.list_feedback()
+
+
+@router.get("/feedback-with-headlines", response_model=list[FeedbackWithHeadline])
+def list_feedback_with_headlines(
+    workspace_id: str,
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+    news_service: NewsService = Depends(get_news_service),
+):
+    settings = get_settings()
+
+    try:
+        workspace_service.get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    workspace_dir = Path(settings.workspaces_path) / workspace_id
+    feedback_service = FeedbackService(workspace_dir)
+    feedbacks = feedback_service.list_feedback()
+
+    return _enrich_feedbacks_with_headlines(feedbacks, news_service)
+
+
+@router.delete("/feedback/{feedback_id}")
+def delete_feedback(
+    workspace_id: str,
+    feedback_id: str,
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+):
+    settings = get_settings()
+
+    try:
+        workspace_service.get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    workspace_dir = Path(settings.workspaces_path) / workspace_id
+    feedback_service = FeedbackService(workspace_dir)
+
+    try:
+        feedback_service.delete_feedback(feedback_id)
+    except FeedbackNotFoundError:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+
+    return {"status": "deleted"}
 
 
 @router.post("/suggest-improvements", response_model=ImprovementSuggestionResponse)
