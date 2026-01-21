@@ -80,51 +80,69 @@
         </div>
 
         <div id="suggestions-content" class="hidden space-y-6">
-            <!-- Category Suggestions -->
-            <div class="border border-gray-200 rounded-xl p-5">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Category Suggestions</h3>
-                <div id="category-suggestions" class="space-y-3"></div>
-            </div>
-
-            <!-- Priority Order -->
-            <div class="border border-gray-200 rounded-xl p-5">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Priority Order</h3>
-                <ol id="priority-order" class="list-decimal list-inside space-y-2 text-gray-700"></ol>
-            </div>
-
-            <!-- Updated Categories (Collapsible) -->
-            <div class="border border-gray-200 rounded-xl">
-                <button onclick="toggleSection('updated-categories')" class="w-full flex items-center justify-between p-5 text-left">
-                    <div class="flex items-center gap-3">
-                        <h3 class="text-lg font-semibold text-gray-900">Updated Categories</h3>
-                        <span id="updated-categories-count" class="text-sm text-gray-500"></span>
-                    </div>
-                    <span id="updated-categories-arrow" class="text-gray-400 transition-transform duration-200">&#9654;</span>
+            <!-- View Toggle -->
+            <div class="flex gap-2">
+                <button onclick="setSuggestionView('by-type')" id="view-by-type-btn"
+                        class="px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 text-white transition-colors duration-150">
+                    By Suggestion Type
                 </button>
-                <div id="updated-categories" class="hidden px-5 pb-5">
-                    <div class="flex justify-end mb-3">
-                        <button onclick="copyUpdatedCategories()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy JSON to clipboard</button>
+                <button onclick="setSuggestionView('by-feedback')" id="view-by-feedback-btn"
+                        class="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-150">
+                    By Feedback Source
+                </button>
+            </div>
+
+            <!-- By Type View -->
+            <div id="suggestions-by-type">
+                <!-- Category Suggestions -->
+                <div class="border border-gray-200 rounded-xl p-5 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Category Suggestions</h3>
+                    <div id="category-suggestions" class="space-y-3"></div>
+                </div>
+
+                <!-- Priority Order -->
+                <div class="border border-gray-200 rounded-xl p-5 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Priority Order</h3>
+                    <ol id="priority-order" class="list-decimal list-inside space-y-2 text-gray-700"></ol>
+                </div>
+
+                <!-- Updated Categories (Collapsible) -->
+                <div class="border border-gray-200 rounded-xl mb-6">
+                    <button onclick="toggleSection('updated-categories')" class="w-full flex items-center justify-between p-5 text-left">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-lg font-semibold text-gray-900">Updated Categories</h3>
+                            <span id="updated-categories-count" class="text-sm text-gray-500"></span>
+                        </div>
+                        <span id="updated-categories-arrow" class="text-gray-400 transition-transform duration-200">&#9654;</span>
+                    </button>
+                    <div id="updated-categories" class="hidden px-5 pb-5">
+                        <div class="flex justify-end mb-3">
+                            <button onclick="copyUpdatedCategories()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy JSON to clipboard</button>
+                        </div>
+                        <div id="updated-categories-content" class="space-y-3"></div>
                     </div>
-                    <div id="updated-categories-content" class="space-y-3"></div>
+                </div>
+
+                <!-- Updated Few-Shot Examples (Collapsible) -->
+                <div class="border border-gray-200 rounded-xl">
+                    <button onclick="toggleSection('updated-fewshots')" class="w-full flex items-center justify-between p-5 text-left">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-lg font-semibold text-gray-900">Updated Few-Shot Examples</h3>
+                            <span id="updated-fewshots-count" class="text-sm text-gray-500"></span>
+                        </div>
+                        <span id="updated-fewshots-arrow" class="text-gray-400 transition-transform duration-200">&#9654;</span>
+                    </button>
+                    <div id="updated-fewshots" class="hidden px-5 pb-5">
+                        <div class="flex justify-end mb-3">
+                            <button onclick="copyUpdatedFewShots()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy JSON to clipboard</button>
+                        </div>
+                        <div id="updated-fewshots-content" class="space-y-3"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Updated Few-Shot Examples (Collapsible) -->
-            <div class="border border-gray-200 rounded-xl">
-                <button onclick="toggleSection('updated-fewshots')" class="w-full flex items-center justify-between p-5 text-left">
-                    <div class="flex items-center gap-3">
-                        <h3 class="text-lg font-semibold text-gray-900">Updated Few-Shot Examples</h3>
-                        <span id="updated-fewshots-count" class="text-sm text-gray-500"></span>
-                    </div>
-                    <span id="updated-fewshots-arrow" class="text-gray-400 transition-transform duration-200">&#9654;</span>
-                </button>
-                <div id="updated-fewshots" class="hidden px-5 pb-5">
-                    <div class="flex justify-end mb-3">
-                        <button onclick="copyUpdatedFewShots()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy JSON to clipboard</button>
-                    </div>
-                    <div id="updated-fewshots-content" class="space-y-3"></div>
-                </div>
-            </div>
+            <!-- By Feedback View -->
+            <div id="suggestions-by-feedback" class="hidden space-y-4"></div>
         </div>
 
         <div id="suggestions-error" class="hidden">
@@ -141,6 +159,24 @@
     let feedbacks = [];
     let suggestionsData = null;
     let feedbacksLoaded = false;
+    let currentSuggestionView = 'by-type';
+
+    function setSuggestionView(view) {
+        currentSuggestionView = view;
+        document.getElementById('suggestions-by-type').classList.toggle('hidden', view !== 'by-type');
+        document.getElementById('suggestions-by-feedback').classList.toggle('hidden', view !== 'by-feedback');
+
+        const typeBtn = document.getElementById('view-by-type-btn');
+        const feedbackBtn = document.getElementById('view-by-feedback-btn');
+
+        if (view === 'by-type') {
+            typeBtn.className = 'px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 text-white transition-colors duration-150';
+            feedbackBtn.className = 'px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-150';
+        } else {
+            typeBtn.className = 'px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-150';
+            feedbackBtn.className = 'px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 text-white transition-colors duration-150';
+        }
+    }
 
     function showTab(tab) {
         document.getElementById('panel-categories').classList.toggle('hidden', tab !== 'categories');
@@ -360,6 +396,7 @@
         renderPriorityOrder(data.suggestions.priority_order);
         renderUpdatedCategories(data.suggestions.updated_categories);
         renderUpdatedFewShots(data.suggestions.updated_few_shots);
+        renderSuggestionsByFeedback(data);
     }
 
     function renderSourceFeedbacks(feedbackList) {
@@ -399,11 +436,28 @@
                 <div class="text-sm text-gray-600 mb-2">
                     <span class="font-medium">User reasoning:</span> ${escapeHtml(fb.reasoning)}
                 </div>
-                <div class="text-sm text-gray-500">
+                <div class="text-sm text-gray-500 mb-3">
                     <span class="font-medium">AI insight:</span> ${escapeHtml(fb.ai_insight.category)} (${Math.round(fb.ai_insight.confidence * 100)}% confidence)
+                </div>
+                <div class="border-t border-gray-200 pt-3">
+                    <button onclick="toggleFeedbackContent('${fb.id}')"
+                            class="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
+                        <span id="feedback-content-arrow-${fb.id}" class="transition-transform duration-200">&#9654;</span>
+                        <span>Article Content</span>
+                    </button>
+                    <div id="feedback-content-${fb.id}" class="hidden mt-2 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded p-3 text-sm text-gray-700 whitespace-pre-wrap">
+                        ${escapeHtml(fb.article_content || '')}
+                    </div>
                 </div>
             </div>
         `).join('');
+    }
+
+    function toggleFeedbackContent(feedbackId) {
+        const content = document.getElementById(`feedback-content-${feedbackId}`);
+        const arrow = document.getElementById(`feedback-content-arrow-${feedbackId}`);
+        content.classList.toggle('hidden');
+        arrow.style.transform = content.classList.contains('hidden') ? '' : 'rotate(90deg)';
     }
 
     function renderCategorySuggestions(suggestions, feedbacks) {
@@ -413,27 +467,102 @@
             return;
         }
 
-        const feedbackMap = {};
-        feedbacks.forEach(fb => {
-            feedbackMap[fb.article_id] = fb.article_headline;
-        });
-
         container.innerHTML = suggestions.map(s => {
-            const basedOnHtml = s.based_on_feedback_ids && s.based_on_feedback_ids.length > 0
-                ? `<div class="text-xs text-gray-500 mt-2">Based on: ${s.based_on_feedback_ids.map(id => {
-                    const fb = feedbacks.find(f => f.id === id);
-                    return fb ? escapeHtml(fb.article_headline) : id;
-                }).join(', ')}</div>`
-                : '';
+            const feedbackLinks = (s.based_on_feedback_ids || []).map(id => {
+                const fb = feedbacks.find(f => f.id === id);
+                return fb
+                    ? `<a href="#feedback-card-${id}" onclick="highlightFeedback('${id}')" class="text-red-600 hover:underline">${escapeHtml(fb.article_headline)}</a>`
+                    : id;
+            }).join(', ');
+
+            const quotes = (s.user_reasoning_quotes || []).map(q =>
+                `<div class="text-xs text-gray-500 italic mt-1">"${escapeHtml(q)}"</div>`
+            ).join('');
 
             return `
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
                     <div class="font-medium text-gray-900 mb-1">${escapeHtml(s.category || s.suggestion || 'Suggestion')}</div>
                     <div class="text-sm text-gray-600">${escapeHtml(s.rationale || s.description || '')}</div>
-                    ${basedOnHtml}
+                    ${feedbackLinks ? `<div class="text-xs text-gray-500 mt-2">Based on: ${feedbackLinks}</div>` : ''}
+                    ${quotes}
                 </div>
             `;
         }).join('');
+    }
+
+    function highlightFeedback(feedbackId) {
+        const card = document.getElementById(`feedback-card-${feedbackId}`);
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('ring-2', 'ring-red-500');
+            setTimeout(() => card.classList.remove('ring-2', 'ring-red-500'), 2000);
+        }
+    }
+
+    function renderSuggestionsByFeedback(data) {
+        const container = document.getElementById('suggestions-by-feedback');
+        const feedbacksList = data.feedbacks || [];
+        const catSuggestions = data.suggestions.category_suggestions || [];
+        const fewShotSuggestions = data.suggestions.few_shot_suggestions || [];
+
+        const cards = feedbacksList.map(fb => {
+            const relatedCatSuggestions = catSuggestions.filter(s =>
+                (s.based_on_feedback_ids || []).includes(fb.id)
+            );
+            const relatedFewShotSuggestions = fewShotSuggestions.filter(s =>
+                s.based_on_feedback_id === fb.id
+            );
+
+            if (relatedCatSuggestions.length === 0 && relatedFewShotSuggestions.length === 0) {
+                return '';
+            }
+
+            return `
+                <div class="border border-gray-200 rounded-xl p-5">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="${fb.thumbs_up ? 'text-green-600' : 'text-red-600'}">
+                            ${fb.thumbs_up ? '&#128077;' : '&#128078;'}
+                        </span>
+                        <h4 class="font-medium text-gray-900">${escapeHtml(fb.article_headline)}</h4>
+                    </div>
+                    <div class="text-sm text-gray-600 mb-3">User said: "${escapeHtml(fb.reasoning)}"</div>
+
+                    ${relatedCatSuggestions.length > 0 ? `
+                        <div class="mb-3">
+                            <div class="text-xs font-medium text-gray-500 uppercase mb-2">Category Suggestions</div>
+                            ${relatedCatSuggestions.map(s => `
+                                <div class="bg-white border border-gray-100 rounded p-3 mb-2">
+                                    <div class="font-medium text-sm">${escapeHtml(s.category)}</div>
+                                    <div class="text-xs text-gray-600">${escapeHtml(s.rationale)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    ${relatedFewShotSuggestions.length > 0 ? `
+                        <div>
+                            <div class="text-xs font-medium text-gray-500 uppercase mb-2">Few-Shot Suggestions</div>
+                            ${relatedFewShotSuggestions.map(s => `
+                                <div class="bg-white border border-gray-100 rounded p-3 mb-2">
+                                    <span class="text-xs px-2 py-0.5 rounded-full ${s.source === 'user_article' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}">
+                                        ${s.source === 'user_article' ? 'From this article' : 'Synthetic'}
+                                    </span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 ml-1">
+                                        ${escapeHtml(s.action)}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).filter(Boolean);
+
+        if (cards.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No suggestions linked to specific feedback.</p>';
+        } else {
+            container.innerHTML = cards.join('');
+        }
     }
 
     function renderPriorityOrder(priorities) {
