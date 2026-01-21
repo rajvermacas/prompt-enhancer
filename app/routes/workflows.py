@@ -197,11 +197,10 @@ def suggest_improvements(
 
     categories = prompt_service.get_categories().categories
     few_shots = prompt_service.get_few_shots().examples
-    reports = feedback_service.list_evaluation_reports()
     feedbacks = feedback_service.list_feedback()
 
-    if not reports:
-        raise HTTPException(status_code=400, detail="No evaluation reports available")
+    if not feedbacks:
+        raise HTTPException(status_code=400, detail="No feedback available")
 
     feedbacks_with_headlines = _enrich_feedbacks_with_headlines(
         feedbacks, news_service
@@ -209,7 +208,7 @@ def suggest_improvements(
 
     llm = get_llm(settings)
     agent = ImprovementAgent(llm=llm)
-    suggestions = agent.suggest_improvements(reports, categories, few_shots)
+    suggestions = agent.suggest_improvements(feedbacks_with_headlines, categories, few_shots)
 
     return ImprovementSuggestionResponse(
         suggestions=suggestions,

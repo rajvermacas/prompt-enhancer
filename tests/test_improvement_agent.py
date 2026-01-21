@@ -3,31 +3,51 @@ from unittest.mock import MagicMock
 import pytest
 
 
-def test_improvement_agent_builds_prompt():
-    """ImprovementAgent builds prompt from all reports."""
+def test_improvement_agent_builds_prompt_from_feedbacks():
+    """ImprovementAgent builds prompt from feedbacks with full context."""
+    from datetime import datetime
+    from unittest.mock import MagicMock
+
     from app.agents.improvement_agent import ImprovementAgent
-    from app.models.feedback import EvaluationReport, PromptGap
+    from app.models.feedback import AIInsight, FeedbackWithHeadline, ReasoningRow
     from app.models.prompts import CategoryDefinition
 
     mock_llm = MagicMock()
     agent = ImprovementAgent(llm=mock_llm)
 
-    reports = [
-        EvaluationReport(
-            id="rpt-001",
-            feedback_id="fb-001",
-            diagnosis="Issue 1",
-            prompt_gaps=[PromptGap(location="Cat1", issue="Vague", suggestion="Fix")],
-            few_shot_gaps=[],
-            summary="Summary 1",
+    feedbacks = [
+        FeedbackWithHeadline(
+            id="fb-001",
+            article_id="news-001",
+            article_headline="Company X Reports Earnings",
+            article_content="Full article about Company X earnings report...",
+            thumbs_up=False,
+            correct_category="Financial News",
+            reasoning="This is about earnings, not technology",
+            ai_insight=AIInsight(
+                category="Technology",
+                reasoning_table=[
+                    ReasoningRow(
+                        category_excerpt="tech companies",
+                        news_excerpt="Company X",
+                        reasoning="Company X is tech",
+                    )
+                ],
+                confidence=0.75,
+            ),
+            created_at=datetime.now(),
         ),
     ]
-    categories = [CategoryDefinition(name="Cat1", definition="Def1")]
+    categories = [CategoryDefinition(name="Technology", definition="Tech news")]
 
-    prompt = agent._build_prompt(reports, categories, [])
+    prompt = agent._build_prompt(feedbacks, categories, [])
 
-    assert "Issue 1" in prompt
-    assert "Cat1" in prompt
+    assert "fb-001" in prompt
+    assert "Company X Reports Earnings" in prompt
+    assert "Full article about Company X earnings report" in prompt
+    assert "This is about earnings, not technology" in prompt
+    assert "Financial News" in prompt
+    assert "AUTHORITATIVE" in prompt
 
 
 def test_improvement_agent_parses_response():
@@ -70,8 +90,8 @@ def test_improvement_agent_parses_updated_fields():
     assert result.updated_few_shots[0].action == "add"
 
 
-def test_improvement_agent_backfills_updated_few_shots():
-    """ImprovementAgent backfills updated few-shots from suggestions."""
+def test_improvement_agent_parses_complete_few_shot_with_source():
+    """ImprovementAgent parses complete few-shot suggestions with source field."""
     from app.agents.improvement_agent import ImprovementAgent
 
     mock_llm = MagicMock()
@@ -82,13 +102,13 @@ def test_improvement_agent_backfills_updated_few_shots():
         "few_shot_suggestions": [
             {
                 "action": "add",
+                "source": "user_article",
+                "based_on_feedback_id": "fb-001",
                 "details": {
                     "id": "example_positive_1",
-                    "fields": {
-                        "text": "Company X reports record earnings.",
-                        "category": "Positive News",
-                        "explanation": "Strong earnings indicate positive sentiment."
-                    }
+                    "news_content": "Company X reports record earnings.",
+                    "category": "Positive News",
+                    "reasoning": "Strong earnings indicate positive sentiment."
                 }
             }
         ],
@@ -96,11 +116,12 @@ def test_improvement_agent_backfills_updated_few_shots():
         "updated_few_shots": [
             {
                 "action": "add",
+                "source": "user_article",
                 "example": {
                     "id": "example_positive_1",
-                    "news_content": null,
-                    "category": null,
-                    "reasoning": null
+                    "news_content": "Company X reports record earnings.",
+                    "category": "Positive News",
+                    "reasoning": "Strong earnings indicate positive sentiment."
                 }
             }
         ]
@@ -111,3 +132,5 @@ def test_improvement_agent_backfills_updated_few_shots():
     assert result.updated_few_shots[0].example.news_content == "Company X reports record earnings."
     assert result.updated_few_shots[0].example.category == "Positive News"
     assert result.updated_few_shots[0].example.reasoning == "Strong earnings indicate positive sentiment."
+    assert result.few_shot_suggestions[0]["source"] == "user_article"
+    assert result.few_shot_suggestions[0]["based_on_feedback_id"] == "fb-001"

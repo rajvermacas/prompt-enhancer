@@ -3,37 +3,38 @@ import json
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.models.feedback import EvaluationReport, ImprovementSuggestion
+from app.models.feedback import FeedbackWithHeadline, ImprovementSuggestion
 from app.models.prompts import CategoryDefinition, FewShotExample
 
 
-IMPROVEMENT_SYSTEM_PROMPT = """You are a prompt optimization expert. Analyze the evaluation reports and suggest improvements to category definitions and few-shot examples.
+IMPROVEMENT_SYSTEM_PROMPT = """You are a prompt optimization expert. Analyze user feedback and suggest improvements to category definitions and few-shot examples.
 
-Focus on:
-1. Patterns across multiple reports
-2. Recurring issues in definitions
-3. Missing or misleading few-shot examples
+CRITICAL: User feedback reasoning is AUTHORITATIVE. Your suggestions MUST directly address what the user explained. Do not override or reinterpret user reasoning with your own judgment.
+
+For each suggestion, you MUST:
+1. Reference which feedback ID(s) it addresses
+2. Quote the specific user reasoning that drives this suggestion
+3. Explain how your suggestion fixes the issue the user identified
+
+When a user marks a classification as incorrect (thumbs down):
+- Their correct_category IS the correct answer
+- Their reasoning explains WHY - use this to improve definitions
+- Consider proposing their article as a new few-shot example (source: "user_article")
+
+You may also suggest synthetic few-shot examples (source: "synthetic") when you identify gaps that user articles don't cover.
 
 Respond with a JSON object containing:
-- category_suggestions: array of {category, current, suggested, rationale}
-- few_shot_suggestions: array of {action: "add"|"modify"|"remove", details}
+- category_suggestions: array of {category, current, suggested, rationale, based_on_feedback_ids, user_reasoning_quotes}
+- few_shot_suggestions: array of {action: "add"|"modify"|"remove", source: "user_article"|"synthetic", based_on_feedback_id, details}
 - priority_order: array of strings indicating what to fix first
 - updated_categories: array of {category, updated_definition} for changed items only
-- updated_few_shots: array of {action, example} for changed items only
-  - example must include id and full fields for add/modify, id only for remove
+- updated_few_shots: array of {action, source, example} for changed items only
 
 Rules:
 - Return ONLY valid JSON (no markdown).
-- CRITICAL: updated_categories must directly correspond to category_suggestions.
-  For each entry in category_suggestions, include the matching entry in updated_categories
-  with the "suggested" definition as "updated_definition". Use the exact same category name.
-- CRITICAL: updated_few_shots must directly correspond to few_shot_suggestions.
-  For each entry in few_shot_suggestions, include the matching entry in updated_few_shots
-  with complete example data. Use the exact same id.
-- For updated_categories, include only entries with a non-empty updated_definition.
-- For updated_few_shots, include add/modify entries only if example has non-empty
-  news_content, category, and reasoning.
-- If you cannot provide full content for an item, omit it from updated_* arrays.
+- Every suggestion MUST have based_on_feedback_ids populated
+- Every suggestion MUST quote relevant user reasoning
+- For "user_article" few-shots, use the actual article content and user's correct category
 """
 
 
@@ -43,11 +44,11 @@ class ImprovementAgent:
 
     def suggest_improvements(
         self,
-        reports: list[EvaluationReport],
+        feedbacks: list[FeedbackWithHeadline],
         categories: list[CategoryDefinition],
         few_shots: list[FewShotExample],
     ) -> ImprovementSuggestion:
-        prompt = self._build_prompt(reports, categories, few_shots)
+        prompt = self._build_prompt(feedbacks, categories, few_shots)
         messages = [
             SystemMessage(content=IMPROVEMENT_SYSTEM_PROMPT),
             HumanMessage(content=prompt),
@@ -57,20 +58,27 @@ class ImprovementAgent:
 
     def _build_prompt(
         self,
-        reports: list[EvaluationReport],
+        feedbacks: list[FeedbackWithHeadline],
         categories: list[CategoryDefinition],
         few_shots: list[FewShotExample],
     ) -> str:
-        parts = ["## Evaluation Reports Summary\n\n"]
+        parts = ["## User Feedback (AUTHORITATIVE)\n\n"]
 
-        for report in reports:
-            parts.append(f"### Report {report.id}\n")
-            parts.append(f"- Diagnosis: {report.diagnosis}\n")
-            parts.append(f"- Summary: {report.summary}\n")
-            if report.prompt_gaps:
-                parts.append("- Prompt gaps:\n")
-                for gap in report.prompt_gaps:
-                    parts.append(f"  - {gap.location}: {gap.issue}\n")
+        for fb in feedbacks:
+            parts.append(f"### Feedback {fb.id}\n")
+            parts.append(f"**Article Headline:** {fb.article_headline}\n")
+            parts.append(f"**Article Content:**\n{fb.article_content}\n\n")
+            verdict = "Correct" if fb.thumbs_up else "Incorrect"
+            parts.append(f"**User Verdict:** {verdict}\n")
+            if not fb.thumbs_up:
+                parts.append(f"**User's Correct Category:** {fb.correct_category}\n")
+            parts.append(f"**User's Reasoning (AUTHORITATIVE):** {fb.reasoning}\n")
+            confidence_pct = f"{fb.ai_insight.confidence:.0%}"
+            parts.append(f"**AI Predicted:** {fb.ai_insight.category} ({confidence_pct} confidence)\n")
+            if fb.ai_insight.reasoning_table:
+                parts.append("**AI Reasoning Table:**\n")
+                for row in fb.ai_insight.reasoning_table:
+                    parts.append(f"  - {row.category_excerpt} | {row.news_excerpt} | {row.reasoning}\n")
             parts.append("\n")
 
         parts.append("## Current Category Definitions\n")
@@ -80,7 +88,10 @@ class ImprovementAgent:
         if few_shots:
             parts.append("## Current Few-Shot Examples\n")
             for ex in few_shots:
-                parts.append(f"- {ex.id}: {ex.category} - {ex.news_content[:50]}...\n")
+                parts.append(f"### {ex.id}\n")
+                parts.append(f"- Category: {ex.category}\n")
+                parts.append(f"- Content: {ex.news_content}\n")
+                parts.append(f"- Reasoning: {ex.reasoning}\n\n")
 
         return "".join(parts)
 
@@ -94,88 +105,11 @@ class ImprovementAgent:
             cleaned = cleaned[:-3]
 
         data = json.loads(cleaned.strip())
-        few_shot_suggestions = data.get("few_shot_suggestions", [])
-        updated_few_shots = data.get("updated_few_shots", [])
-
-        def extract_fields(details: dict) -> dict:
-            fields = details.get("fields")
-            if isinstance(fields, dict):
-                return fields
-            return details
-
-        def is_missing(value: object) -> bool:
-            if value is None:
-                return True
-            if isinstance(value, str):
-                return value.strip() == ""
-            return False
-
-        def build_suggestion_map(items: list) -> dict:
-            mapped: dict[str, dict] = {}
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                action = item.get("action")
-                details = item.get("details")
-                if not isinstance(details, dict):
-                    continue
-                fields = extract_fields(details)
-                example_id = details.get("id") or item.get("id")
-                if not isinstance(example_id, str) or example_id.strip() == "":
-                    continue
-                mapped[example_id] = {
-                    "action": action,
-                    "example": {
-                        "id": example_id,
-                        "news_content": fields.get("news_content") or fields.get("text"),
-                        "category": fields.get("category"),
-                        "reasoning": fields.get("reasoning") or fields.get("explanation"),
-                    },
-                }
-            return mapped
-
-        if isinstance(updated_few_shots, list):
-            suggestion_map = build_suggestion_map(
-                few_shot_suggestions if isinstance(few_shot_suggestions, list) else []
-            )
-            normalized: list[dict] = []
-            for item in updated_few_shots:
-                if not isinstance(item, dict):
-                    continue
-                action = item.get("action")
-                example = item.get("example")
-                if not isinstance(example, dict):
-                    example = {}
-                example_id = example.get("id") or item.get("id")
-                if isinstance(example_id, str) and example_id.strip():
-                    example["id"] = example_id
-                if action != "remove":
-                    news_content = example.get("news_content")
-                    category = example.get("category")
-                    reasoning = example.get("reasoning")
-                    if (
-                        is_missing(news_content)
-                        or is_missing(category)
-                        or is_missing(reasoning)
-                    ):
-                        fallback = suggestion_map.get(example.get("id"))
-                        if fallback:
-                            fallback_example = fallback.get("example", {})
-                            if is_missing(example.get("news_content")):
-                                example["news_content"] = fallback_example.get("news_content")
-                            if is_missing(example.get("category")):
-                                example["category"] = fallback_example.get("category")
-                            if is_missing(example.get("reasoning")):
-                                example["reasoning"] = fallback_example.get("reasoning")
-                normalized.append({"action": action, "example": example})
-            updated_few_shots = normalized
-        else:
-            updated_few_shots = []
 
         return ImprovementSuggestion(
             category_suggestions=data.get("category_suggestions", []),
-            few_shot_suggestions=few_shot_suggestions,
+            few_shot_suggestions=data.get("few_shot_suggestions", []),
             priority_order=data.get("priority_order", []),
             updated_categories=data.get("updated_categories", []),
-            updated_few_shots=updated_few_shots,
+            updated_few_shots=data.get("updated_few_shots", []),
         )
