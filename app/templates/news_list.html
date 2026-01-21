@@ -430,8 +430,9 @@
                         </p>
                     </div>
                     <button onclick="startWorkflow('${article.id}')"
-                            class="flex-shrink-0 bg-red-200 text-red-800 px-5 py-2.5 rounded-lg font-medium hover:bg-red-300 active:bg-red-400 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 focus:ring-2 focus:ring-red-300/50 focus:ring-offset-2 focus:outline-none">
-                        Start AI Workflow
+                            class="flex-shrink-0 bg-red-200 text-red-800 px-5 py-2.5 rounded-lg font-medium hover:bg-red-300 active:bg-red-400 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 focus:ring-2 focus:ring-red-300/50 focus:ring-offset-2 focus:outline-none flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        AI Assisted Analysis
                     </button>
                 </div>
                 <div class="ai-insight hidden mt-6"></div>
@@ -526,7 +527,10 @@
                     </table>
                 </div>
                 <div id="feedback-section-${articleId}" class="mt-5 p-5 bg-white border border-gray-200 rounded-xl">
-                    <h5 class="font-semibold mb-4 text-gray-900">Your Feedback</h5>
+                    <h5 class="font-semibold mb-4 text-gray-900 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        AI Feedback Submission
+                    </h5>
                     <div class="space-y-4">
                         <select id="correct-cat-${articleId}" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 bg-white text-gray-900 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none transition-all duration-150">
                             <option value="">Select correct category</option>
@@ -592,7 +596,7 @@
         }
 
         const feedbackSection = document.getElementById('feedback-section-' + articleId);
-        feedbackSection.innerHTML = createLoaderHtml('Submitting feedback...');
+        feedbackSection.innerHTML = createLoaderHtml('AI Processing Feedback...');
 
         fetch(`/api/workspaces/${wsId}/feedback`, {
             method: 'POST',
