@@ -231,3 +231,38 @@ def test_feedback_with_headlines_includes_content(client, workspace_id):
     data = response.json()
     assert len(data) == 1
     assert data[0]["article_content"] == "Content"
+
+
+def test_analyze_article_with_system_prompt(client, workspace_id):
+    """POST /api/workspaces/{id}/analyze includes user_requested_analysis when system prompt set."""
+    from app.models.feedback import AIInsightWithUserAnalysis
+
+    # First set a system prompt
+    client.put(
+        f"/api/workspaces/{workspace_id}/prompts/system-prompt",
+        json={"content": "Explain why other categories were not selected"},
+    )
+
+    mock_insight = AIInsightWithUserAnalysis(
+        category="Cat1",
+        reasoning_table=[],
+        confidence=0.9,
+        user_requested_analysis="Other categories were not selected because...",
+    )
+
+    with patch("app.routes.workflows.get_llm") as mock_get_llm:
+        mock_llm = MagicMock()
+        # Mock with_structured_output to return a mock that returns our insight
+        mock_structured_llm = MagicMock()
+        mock_structured_llm.invoke.return_value = mock_insight
+        mock_llm.with_structured_output.return_value = mock_structured_llm
+        mock_get_llm.return_value = mock_llm
+
+        response = client.post(
+            f"/api/workspaces/{workspace_id}/analyze",
+            json={"article_id": "news-001"},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "user_requested_analysis" in data

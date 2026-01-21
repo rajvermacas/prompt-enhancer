@@ -45,7 +45,7 @@ class FeedbackRequest(BaseModel):
     ai_insight: AIInsight
 
 
-@router.post("/analyze", response_model=AIInsight)
+@router.post("/analyze")
 def analyze_article(
     workspace_id: str,
     request: AnalyzeRequest,
@@ -69,6 +69,8 @@ def analyze_article(
 
     categories = prompt_service.get_categories().categories
     few_shots = prompt_service.get_few_shots().examples
+    system_prompt_config = prompt_service.get_system_prompt()
+    custom_system_prompt = system_prompt_config.content if system_prompt_config.content else None
 
     if not categories:
         raise HTTPException(
@@ -82,7 +84,7 @@ def analyze_article(
     llm = get_llm(settings)
     agent = AnalysisAgent(llm=llm, system_prompt=system_prompt)
 
-    return agent.analyze(categories, few_shots, article.content)
+    return agent.analyze(categories, few_shots, article.content, custom_system_prompt)
 
 
 @router.post("/feedback", response_model=EvaluationReport)
