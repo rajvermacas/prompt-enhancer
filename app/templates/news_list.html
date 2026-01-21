@@ -3,8 +3,117 @@
 {% block title %}News - Prompt Enhancer{% endblock %}
 
 {% block content %}
-<div class="mb-8">
+<div class="mb-8 flex justify-between items-center">
     <h1 class="text-2xl font-semibold text-gray-900">News Articles</h1>
+    <button id="upload-news-btn"
+            onclick="openUploadModal()"
+            class="hidden bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-500 transition-all duration-200">
+        Upload News
+    </button>
+</div>
+
+<!-- Upload News Modal -->
+<div id="upload-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center p-6 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Upload News</h2>
+            <button onclick="closeUploadModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 mb-6">
+                <button id="tab-csv" onclick="switchTab('csv')"
+                        class="px-4 py-2 font-medium text-red-600 border-b-2 border-red-600">
+                    CSV Upload
+                </button>
+                <button id="tab-single" onclick="switchTab('single')"
+                        class="px-4 py-2 font-medium text-gray-500 hover:text-gray-700">
+                    Single Article
+                </button>
+            </div>
+
+            <!-- CSV Upload Tab -->
+            <div id="content-csv" class="tab-content">
+                <p class="text-sm text-gray-600 mb-4">
+                    Upload a CSV file with columns: <code class="bg-gray-100 px-1 rounded">id</code>,
+                    <code class="bg-gray-100 px-1 rounded">headline</code>,
+                    <code class="bg-gray-100 px-1 rounded">content</code>,
+                    <code class="bg-gray-100 px-1 rounded">date</code>
+                </p>
+                <div id="csv-dropzone"
+                     class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-red-400 transition-colors cursor-pointer"
+                     onclick="document.getElementById('csv-file-input').click()">
+                    <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <p class="text-gray-600" id="csv-filename">Drop CSV file here or click to browse</p>
+                    <input type="file" id="csv-file-input" accept=".csv" class="hidden" onchange="handleFileSelect(this)">
+                </div>
+            </div>
+
+            <!-- Single Article Tab -->
+            <div id="content-single" class="tab-content hidden">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Headline</label>
+                        <input type="text" id="article-headline"
+                               class="w-full border border-gray-200 rounded-lg px-4 py-2 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none"
+                               placeholder="Enter headline">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input type="text" id="article-date"
+                               class="w-full border border-gray-200 rounded-lg px-4 py-2 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none"
+                               placeholder="e.g., 2026-01-15, Jan 15 2026">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Content</label>
+                        <textarea id="article-content" rows="5"
+                                  class="w-full border border-gray-200 rounded-lg px-4 py-2 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none resize-none"
+                                  placeholder="Enter article content"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- News Source Toggle -->
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <label class="block text-sm font-medium text-gray-700 mb-3">News Source</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="news-source" value="merge" checked
+                               class="text-red-600 focus:ring-red-600"
+                               onchange="updateNewsSource(this.value)">
+                        <span class="text-sm text-gray-700">Merge</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="news-source" value="replace"
+                               class="text-red-600 focus:ring-red-600"
+                               onchange="updateNewsSource(this.value)">
+                        <span class="text-sm text-gray-700">Replace</span>
+                    </label>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">
+                    Merge: Show uploaded + default news. Replace: Show only uploaded news.
+                </p>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 p-6 border-t border-gray-200">
+            <button onclick="closeUploadModal()"
+                    class="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors">
+                Cancel
+            </button>
+            <button id="upload-submit-btn" onclick="submitUpload()"
+                    class="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-500 transition-colors">
+                Upload
+            </button>
+        </div>
+    </div>
 </div>
 
 <div id="news-list" class="space-y-5">
