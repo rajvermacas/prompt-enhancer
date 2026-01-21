@@ -174,3 +174,41 @@ def test_chat_reasoning_article_not_found(client, workspace_id):
         },
     )
     assert response.status_code == 404
+
+
+def test_feedback_with_headlines_includes_content(client, workspace_id):
+    """GET /api/workspaces/{id}/feedback-with-headlines returns article_content."""
+    # First submit feedback
+    mock_report = {
+        "diagnosis": "Test",
+        "prompt_gaps": [],
+        "few_shot_gaps": [],
+        "summary": "Test summary",
+    }
+
+    with patch("app.routes.workflows.get_llm") as mock_get_llm:
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value.content = str(mock_report).replace("'", '"')
+        mock_get_llm.return_value = mock_llm
+
+        client.post(
+            f"/api/workspaces/{workspace_id}/feedback",
+            json={
+                "article_id": "news-001",
+                "thumbs_up": False,
+                "correct_category": "Cat2",
+                "reasoning": "Wrong category",
+                "ai_insight": {
+                    "category": "Cat1",
+                    "reasoning_table": [],
+                    "confidence": 0.8,
+                },
+            },
+        )
+
+    response = client.get(f"/api/workspaces/{workspace_id}/feedback-with-headlines")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["article_content"] == "Content"

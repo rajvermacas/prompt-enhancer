@@ -226,14 +226,17 @@ def _enrich_feedbacks_with_headlines(
         try:
             article = news_service.get_article(feedback.article_id)
             headline = article.headline
+            content = article.content
         except ArticleNotFoundError:
             headline = f"Article {feedback.article_id} (not found)"
+            content = ""
 
         enriched.append(
             FeedbackWithHeadline(
                 id=feedback.id,
                 article_id=feedback.article_id,
                 article_headline=headline,
+                article_content=content,
                 thumbs_up=feedback.thumbs_up,
                 correct_category=feedback.correct_category,
                 reasoning=feedback.reasoning,
