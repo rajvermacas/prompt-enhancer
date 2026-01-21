@@ -36,6 +36,11 @@
     // Store current insight for feedback submission
     window.currentInsight = null;
 
+    // Chat state per article
+    window.chatMessages = {};
+    window.chatStreaming = {};
+    window.chatAbortControllers = {};
+
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -280,6 +285,35 @@
                         </div>
                     </div>
                 </div>
+                <div id="chat-section-${articleId}" class="mt-5">
+                    <button onclick="toggleChat('${articleId}')"
+                            id="chat-toggle-${articleId}"
+                            class="w-full bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                        Chat about this reasoning
+                    </button>
+                    <div id="chat-container-${articleId}" class="hidden mt-4 border border-gray-200 rounded-xl overflow-hidden">
+                        <div id="chat-messages-${articleId}" class="h-64 overflow-y-auto p-4 bg-white space-y-3">
+                            <div class="flex justify-start">
+                                <div class="bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl rounded-bl-md max-w-[80%] text-sm">
+                                    Ask me anything about why I classified this article as <strong>${insight.category}</strong>. I can explain my reasoning, compare against other categories, or clarify specific excerpts.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="border-t border-gray-200 p-3 bg-gray-50 flex gap-2">
+                            <input type="text"
+                                   id="chat-input-${articleId}"
+                                   placeholder="Ask about the reasoning..."
+                                   class="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none"
+                                   onkeypress="if(event.key === 'Enter') sendChatMessage('${articleId}')">
+                            <button onclick="sendChatMessage('${articleId}')"
+                                    id="chat-send-${articleId}"
+                                    class="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -502,6 +536,140 @@
 
     function closeSuggestionsModal() {
         document.getElementById('suggestions-modal').classList.add('hidden');
+    }
+
+    function toggleChat(articleId) {
+        const container = document.getElementById('chat-container-' + articleId);
+        const button = document.getElementById('chat-toggle-' + articleId);
+
+        if (container.classList.contains('hidden')) {
+            container.classList.remove('hidden');
+            button.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                Close chat
+            `;
+            if (!window.chatMessages[articleId]) {
+                window.chatMessages[articleId] = [];
+            }
+        } else {
+            container.classList.add('hidden');
+            button.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                Chat about this reasoning
+            `;
+        }
+    }
+
+    async function sendChatMessage(articleId) {
+        const input = document.getElementById('chat-input-' + articleId);
+        const sendBtn = document.getElementById('chat-send-' + articleId);
+        const messagesDiv = document.getElementById('chat-messages-' + articleId);
+        const message = input.value.trim();
+
+        if (!message || window.chatStreaming[articleId]) return;
+
+        const wsId = getWorkspaceId();
+        if (!wsId) {
+            alert('Please select a workspace first');
+            return;
+        }
+
+        // Add user message to UI
+        messagesDiv.innerHTML += `
+            <div class="flex justify-end">
+                <div class="bg-red-600 text-white px-4 py-2 rounded-2xl rounded-br-md max-w-[80%] text-sm">
+                    ${escapeHtml(message)}
+                </div>
+            </div>
+        `;
+
+        // Store in history
+        if (!window.chatMessages[articleId]) {
+            window.chatMessages[articleId] = [];
+        }
+        window.chatMessages[articleId].push({role: 'user', content: message});
+
+        // Clear input and disable send
+        input.value = '';
+        sendBtn.disabled = true;
+        window.chatStreaming[articleId] = true;
+
+        // Add assistant message placeholder
+        const assistantMsgId = 'assistant-msg-' + articleId + '-' + Date.now();
+        messagesDiv.innerHTML += `
+            <div class="flex justify-start">
+                <div id="${assistantMsgId}" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl rounded-bl-md max-w-[80%] text-sm">
+                    <span class="inline-block w-2 h-2 bg-gray-400 rounded-full animate-pulse"></span>
+                </div>
+            </div>
+        `;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        // Create abort controller
+        window.chatAbortControllers[articleId] = new AbortController();
+
+        try {
+            const response = await fetch(`/api/workspaces/${wsId}/chat-reasoning`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    article_id: articleId,
+                    ai_insight: window.currentInsight,
+                    message: message,
+                    chat_history: window.chatMessages[articleId].slice(0, -1)
+                }),
+                signal: window.chatAbortControllers[articleId].signal
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to connect');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let assistantContent = '';
+            const assistantMsgEl = document.getElementById(assistantMsgId);
+
+            while (true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, {stream: true});
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const jsonStr = line.slice(6);
+                        try {
+                            const data = JSON.parse(jsonStr);
+                            if (data.token) {
+                                assistantContent += data.token;
+                                assistantMsgEl.textContent = assistantContent;
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            }
+                        } catch (e) {
+                            // Skip malformed JSON
+                        }
+                    }
+                }
+            }
+
+            // Store assistant response in history
+            window.chatMessages[articleId].push({role: 'assistant', content: assistantContent});
+
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                // User cancelled
+            } else {
+                const assistantMsgEl = document.getElementById(assistantMsgId);
+                assistantMsgEl.textContent = 'Failed to connect. Please try again.';
+                assistantMsgEl.classList.add('text-red-600');
+            }
+        } finally {
+            sendBtn.disabled = false;
+            window.chatStreaming[articleId] = false;
+            delete window.chatAbortControllers[articleId];
+        }
     }
 </script>
 {% endblock %}
