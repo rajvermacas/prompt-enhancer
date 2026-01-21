@@ -78,3 +78,26 @@ def test_evaluation_report_creation():
 
     assert report.diagnosis is not None
     assert len(report.prompt_gaps) == 1
+
+
+def test_feedback_with_headline_includes_article_content():
+    """FeedbackWithHeadline includes article_content field."""
+    from app.models.feedback import AIInsight, FeedbackWithHeadline
+
+    fb = FeedbackWithHeadline(
+        id="fb-001",
+        article_id="news-001",
+        article_headline="Test Headline",
+        article_content="Full article content here",
+        thumbs_up=True,
+        correct_category="Cat1",
+        reasoning="Good classification",
+        ai_insight=AIInsight(
+            category="Cat1",
+            reasoning_table=[],
+            confidence=0.9,
+        ),
+        created_at=datetime.now(),
+    )
+
+    assert fb.article_content == "Full article content here"

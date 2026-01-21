@@ -75,6 +75,7 @@ class FeedbackWithHeadline(BaseModel):
     id: str
     article_id: str
     article_headline: str
+    article_content: str
     thumbs_up: bool
     correct_category: str
     reasoning: str
