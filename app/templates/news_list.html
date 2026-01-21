@@ -3,31 +3,12 @@
 {% block title %}News - Prompt Enhancer{% endblock %}
 
 {% block content %}
-<div class="flex justify-between items-center mb-8">
+<div class="mb-8">
     <h1 class="text-2xl font-semibold text-gray-900">News Articles</h1>
-    <button onclick="suggestImprovements()"
-            class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-200 active:bg-gray-300 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0">
-        Suggest Prompt Improvements
-    </button>
 </div>
 
 <div id="news-list" class="space-y-5">
     <div class="text-center py-8 text-gray-500">Loading news...</div>
-</div>
-
-<div id="suggestions-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-opacity duration-200">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col transform transition-all duration-200">
-        <div class="flex items-center justify-between p-6 border-b border-gray-100">
-            <h2 class="text-xl font-semibold text-gray-900">Prompt Improvement Suggestions</h2>
-            <button onclick="closeSuggestionsModal()" class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-150">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-        </div>
-        <div id="suggestions-content" class="p-6 overflow-y-auto flex-1"></div>
-        <div class="p-4 border-t border-gray-100 flex justify-end">
-            <button onclick="closeSuggestionsModal()" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200">Close</button>
-        </div>
-    </div>
 </div>
 {% endblock %}
 
@@ -60,59 +41,6 @@
         element.focus();
         element.select();
         document.execCommand('copy');
-    }
-
-    function isFilled(value) {
-        return typeof value === 'string' && value.trim().length > 0;
-    }
-
-    function formatUpdatedCategories(updatedCategories) {
-        if (!Array.isArray(updatedCategories) || updatedCategories.length === 0) {
-            return {text: '', skipped: 0};
-        }
-        const lines = ['## Category Definitions', ''];
-        let skipped = 0;
-        updatedCategories.forEach(item => {
-            if (!item || !isFilled(item.category) || !isFilled(item.updated_definition)) {
-                skipped += 1;
-                return;
-            }
-            lines.push(`### ${item.category}`);
-            lines.push(item.updated_definition);
-            lines.push('');
-        });
-        const text = lines.length > 2 ? lines.join('\n').trim() + '\n' : '';
-        return {text, skipped};
-    }
-
-    function formatUpdatedFewShots(updatedFewShots) {
-        if (!Array.isArray(updatedFewShots) || updatedFewShots.length === 0) {
-            return {text: '', skipped: 0};
-        }
-        const actionable = updatedFewShots.filter(item => item && item.action !== 'remove');
-        if (actionable.length === 0) {
-            return {text: '', skipped: 0};
-        }
-        const lines = ['## Examples', ''];
-        let skipped = 0;
-        actionable.forEach(item => {
-            const example = item.example || {};
-            if (!isFilled(example.news_content)
-                || !isFilled(example.category)
-                || !isFilled(example.reasoning)) {
-                skipped += 1;
-                return;
-            }
-            if (isFilled(example.id)) {
-                lines.push(`**ID:** ${example.id}`);
-            }
-            lines.push(`**News:** ${example.news_content}`);
-            lines.push(`**Category:** ${example.category}`);
-            lines.push(`**Reasoning:** ${example.reasoning}`);
-            lines.push('');
-        });
-        const text = lines.length > 2 ? lines.join('\n').trim() + '\n' : '';
-        return {text, skipped};
     }
 
     function toggleContent(articleId) {
@@ -397,145 +325,6 @@
         const insightDiv = row.querySelector('.ai-insight');
         insightDiv.classList.add('hidden');
         insightDiv.innerHTML = '';
-    }
-
-    function suggestImprovements() {
-        const wsId = getWorkspaceId();
-        if (!wsId) {
-            alert('Please select a workspace first');
-            return;
-        }
-
-        document.getElementById('suggestions-content').innerHTML = createLoaderHtml('Generating suggestions...');
-        document.getElementById('suggestions-modal').classList.remove('hidden');
-
-        fetch(`/api/workspaces/${wsId}/suggest-improvements`, {method: 'POST'})
-        .then(r => r.json())
-        .then(data => {
-            const categorySuggestions = Array.isArray(data.category_suggestions)
-                ? data.category_suggestions
-                : [];
-            const priorityOrder = Array.isArray(data.priority_order)
-                ? data.priority_order
-                : [];
-            const updatedCategories = Array.isArray(data.updated_categories)
-                ? data.updated_categories
-                : [];
-            const updatedFewShots = Array.isArray(data.updated_few_shots)
-                ? data.updated_few_shots
-                : [];
-            const updatedCategoriesResult = formatUpdatedCategories(updatedCategories);
-            const updatedFewShotsResult = formatUpdatedFewShots(updatedFewShots);
-            const removedFewShotIds = updatedFewShots
-                .filter(item => item && item.action === 'remove' && item.example && item.example.id)
-                .map(item => item.example.id);
-
-            document.getElementById('suggestions-content').innerHTML = `
-                <div class="space-y-6">
-                    <div>
-                        <h3 class="font-semibold text-gray-900 mb-3">Category Suggestions</h3>
-                        <ul class="space-y-2">
-                            ${categorySuggestions.map(s => `
-                                <li class="flex gap-3 text-sm">
-                                    <span class="font-medium text-gray-900 flex-shrink-0">${s.category}:</span>
-                                    <span class="text-gray-600">${s.rationale}</span>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold text-gray-900 mb-3">Priority Order</h3>
-                        <ol class="space-y-1.5">
-                            ${priorityOrder.map((p, i) => `
-                                <li class="flex items-center gap-3 text-sm">
-                                    <span class="w-6 h-6 flex items-center justify-center bg-red-100 text-red-700 rounded-full text-xs font-medium">${i + 1}</span>
-                                    <span class="text-gray-700">${p}</span>
-                                </li>
-                            `).join('')}
-                        </ol>
-                    </div>
-                    <details class="group border border-gray-200 rounded-xl overflow-hidden">
-                        <summary class="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-150">
-                            <span class="font-medium text-gray-900">Updated Categories</span>
-                            <svg class="w-5 h-5 text-gray-500 transform group-open:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </summary>
-                        <div class="p-4 space-y-3">
-                            <textarea id="updated-categories-text" readonly
-                                      class="w-full h-40 border border-gray-200 rounded-lg p-3 text-sm bg-gray-50 focus:outline-none resize-none"></textarea>
-                            <div id="updated-categories-note" class="text-xs text-gray-500"></div>
-                            <button id="copy-updated-categories"
-                                    onclick="copyText('updated-categories-text')"
-                                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors duration-150">
-                                Copy to clipboard
-                            </button>
-                        </div>
-                    </details>
-                    <details class="group border border-gray-200 rounded-xl overflow-hidden">
-                        <summary class="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-150">
-                            <span class="font-medium text-gray-900">Updated Few-Shot Examples</span>
-                            <svg class="w-5 h-5 text-gray-500 transform group-open:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </summary>
-                        <div class="p-4 space-y-3">
-                            <textarea id="updated-fewshots-text" readonly
-                                      class="w-full h-56 border border-gray-200 rounded-lg p-3 text-sm bg-gray-50 focus:outline-none resize-none"></textarea>
-                            <div id="updated-fewshots-note" class="text-xs text-gray-500"></div>
-                            <button id="copy-updated-fewshots"
-                                    onclick="copyText('updated-fewshots-text')"
-                                    class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors duration-150">
-                                Copy to clipboard
-                            </button>
-                            <div id="updated-fewshots-removals" class="text-sm text-gray-600"></div>
-                        </div>
-                    </details>
-                </div>
-            `;
-
-            const updatedCategoriesTextArea = document.getElementById('updated-categories-text');
-            const updatedFewShotsTextArea = document.getElementById('updated-fewshots-text');
-            const copyUpdatedCategories = document.getElementById('copy-updated-categories');
-            const copyUpdatedFewShots = document.getElementById('copy-updated-fewshots');
-            const updatedCategoriesNote = document.getElementById('updated-categories-note');
-            const updatedFewShotsNote = document.getElementById('updated-fewshots-note');
-            const removalList = document.getElementById('updated-fewshots-removals');
-
-            updatedCategoriesTextArea.value = updatedCategoriesResult.text || 'No changes suggested.';
-            copyUpdatedCategories.disabled = updatedCategoriesResult.text.length === 0;
-            copyUpdatedCategories.classList.toggle('opacity-50', copyUpdatedCategories.disabled);
-            copyUpdatedCategories.classList.toggle('cursor-not-allowed', copyUpdatedCategories.disabled);
-            if (updatedCategoriesResult.skipped > 0) {
-                updatedCategoriesNote.textContent = `Skipped ${updatedCategoriesResult.skipped} incomplete item(s) returned by the agent.`;
-            } else {
-                updatedCategoriesNote.textContent = '';
-            }
-
-            updatedFewShotsTextArea.value = updatedFewShotsResult.text || 'No additions or modifications suggested.';
-            copyUpdatedFewShots.disabled = updatedFewShotsResult.text.length === 0;
-            copyUpdatedFewShots.classList.toggle('opacity-50', copyUpdatedFewShots.disabled);
-            copyUpdatedFewShots.classList.toggle('cursor-not-allowed', copyUpdatedFewShots.disabled);
-            if (updatedFewShotsResult.skipped > 0) {
-                updatedFewShotsNote.textContent = `Skipped ${updatedFewShotsResult.skipped} incomplete item(s) returned by the agent.`;
-            } else {
-                updatedFewShotsNote.textContent = '';
-            }
-
-            if (removedFewShotIds.length > 0) {
-                removalList.innerHTML = `
-                    <div class="mt-2 font-semibold">Remove examples</div>
-                    <ul class="list-disc pl-5">
-                        ${removedFewShotIds.map(id => `<li>${escapeHtml(id)}</li>`).join('')}
-                    </ul>
-                `;
-            } else {
-                removalList.innerHTML = '';
-            }
-        })
-        .catch(err => {
-            document.getElementById('suggestions-content').innerHTML = 'Error: ' + err.message;
-        });
-    }
-
-    function closeSuggestionsModal() {
-        document.getElementById('suggestions-modal').classList.add('hidden');
     }
 
     function toggleChat(articleId) {

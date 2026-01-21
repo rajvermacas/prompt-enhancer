@@ -14,7 +14,14 @@ from app.agents.improvement_agent import ImprovementAgent
 from app.agents.llm_provider import get_llm
 from app.dependencies import get_news_service, get_settings, get_workspace_service
 from app.models.chat import ChatReasoningRequest
-from app.models.feedback import AIInsight, EvaluationReport, Feedback, ImprovementSuggestion
+from app.models.feedback import (
+    AIInsight,
+    EvaluationReport,
+    Feedback,
+    FeedbackWithHeadline,
+    ImprovementSuggestion,
+    ImprovementSuggestionResponse,
+)
 from app.services.feedback_service import FeedbackService
 from app.services.news_service import ArticleNotFoundError, NewsService
 from app.services.prompt_service import PromptService
@@ -127,10 +134,11 @@ def list_feedback(
     return feedback_service.list_feedback()
 
 
-@router.post("/suggest-improvements", response_model=ImprovementSuggestion)
+@router.post("/suggest-improvements", response_model=ImprovementSuggestionResponse)
 def suggest_improvements(
     workspace_id: str,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
+    news_service: NewsService = Depends(get_news_service),
 ):
     settings = get_settings()
 
@@ -146,14 +154,50 @@ def suggest_improvements(
     categories = prompt_service.get_categories().categories
     few_shots = prompt_service.get_few_shots().examples
     reports = feedback_service.list_evaluation_reports()
+    feedbacks = feedback_service.list_feedback()
 
     if not reports:
         raise HTTPException(status_code=400, detail="No evaluation reports available")
 
+    feedbacks_with_headlines = _enrich_feedbacks_with_headlines(
+        feedbacks, news_service
+    )
+
     llm = get_llm(settings)
     agent = ImprovementAgent(llm=llm)
+    suggestions = agent.suggest_improvements(reports, categories, few_shots)
 
-    return agent.suggest_improvements(reports, categories, few_shots)
+    return ImprovementSuggestionResponse(
+        suggestions=suggestions,
+        feedbacks=feedbacks_with_headlines,
+    )
+
+
+def _enrich_feedbacks_with_headlines(
+    feedbacks: list[Feedback],
+    news_service: NewsService,
+) -> list[FeedbackWithHeadline]:
+    enriched = []
+    for feedback in feedbacks:
+        try:
+            article = news_service.get_article(feedback.article_id)
+            headline = article.headline
+        except ArticleNotFoundError:
+            headline = f"Article {feedback.article_id} (not found)"
+
+        enriched.append(
+            FeedbackWithHeadline(
+                id=feedback.id,
+                article_id=feedback.article_id,
+                article_headline=headline,
+                thumbs_up=feedback.thumbs_up,
+                correct_category=feedback.correct_category,
+                reasoning=feedback.reasoning,
+                ai_insight=feedback.ai_insight,
+                created_at=feedback.created_at,
+            )
+        )
+    return enriched
 
 
 @router.post("/chat-reasoning")

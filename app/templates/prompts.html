@@ -16,6 +16,10 @@
                     class="px-5 py-3 rounded-t-lg font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200">
                 Few-Shot Examples
             </button>
+            <button onclick="showTab('suggestions')" id="tab-suggestions"
+                    class="px-5 py-3 rounded-t-lg font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200">
+                Improvement Suggestions
+            </button>
         </nav>
     </div>
 
@@ -42,6 +46,75 @@
             </button>
         </div>
     </div>
+
+    <div id="panel-suggestions" class="p-6 hidden">
+        <div class="mb-6">
+            <button onclick="generateSuggestions()" id="generate-suggestions-btn"
+                    class="bg-red-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-red-500 active:bg-red-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-2 focus:outline-none">
+                Generate Suggestions
+            </button>
+        </div>
+
+        <div id="suggestions-loader" class="hidden">
+            <div class="flex items-center justify-center py-12">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+                <span class="ml-3 text-gray-600">Analyzing feedback and generating suggestions...</span>
+            </div>
+        </div>
+
+        <div id="suggestions-content" class="hidden space-y-6">
+            <!-- Source Feedback Section -->
+            <div class="border border-gray-200 rounded-xl p-5">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Source Feedback</h3>
+                <p class="text-sm text-gray-500 mb-4">The following feedback submissions were used to generate the suggestions below.</p>
+                <div id="source-feedbacks" class="space-y-4"></div>
+            </div>
+
+            <!-- Category Suggestions -->
+            <div class="border border-gray-200 rounded-xl p-5">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Category Suggestions</h3>
+                <div id="category-suggestions" class="space-y-3"></div>
+            </div>
+
+            <!-- Priority Order -->
+            <div class="border border-gray-200 rounded-xl p-5">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Priority Order</h3>
+                <ol id="priority-order" class="list-decimal list-inside space-y-2 text-gray-700"></ol>
+            </div>
+
+            <!-- Updated Categories (Collapsible) -->
+            <div class="border border-gray-200 rounded-xl">
+                <button onclick="toggleSection('updated-categories')" class="w-full flex items-center justify-between p-5 text-left">
+                    <h3 class="text-lg font-semibold text-gray-900">Updated Categories</h3>
+                    <span id="updated-categories-arrow" class="text-gray-400 transition-transform duration-200">&#9654;</span>
+                </button>
+                <div id="updated-categories" class="hidden px-5 pb-5">
+                    <div class="flex justify-end mb-3">
+                        <button onclick="copyUpdatedCategories()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy to clipboard</button>
+                    </div>
+                    <pre id="updated-categories-content" class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 overflow-x-auto"></pre>
+                </div>
+            </div>
+
+            <!-- Updated Few-Shot Examples (Collapsible) -->
+            <div class="border border-gray-200 rounded-xl">
+                <button onclick="toggleSection('updated-fewshots')" class="w-full flex items-center justify-between p-5 text-left">
+                    <h3 class="text-lg font-semibold text-gray-900">Updated Few-Shot Examples</h3>
+                    <span id="updated-fewshots-arrow" class="text-gray-400 transition-transform duration-200">&#9654;</span>
+                </button>
+                <div id="updated-fewshots" class="hidden px-5 pb-5">
+                    <div class="flex justify-end mb-3">
+                        <button onclick="copyUpdatedFewShots()" class="text-sm text-red-600 hover:text-red-700 font-medium">Copy to clipboard</button>
+                    </div>
+                    <pre id="updated-fewshots-content" class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 overflow-x-auto"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div id="suggestions-error" class="hidden">
+            <div class="bg-red-50 border border-red-200 rounded-xl p-5 text-red-700"></div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -49,27 +122,24 @@
 <script>
     let categories = [];
     let fewShots = [];
+    let suggestionsData = null;
 
     function showTab(tab) {
         document.getElementById('panel-categories').classList.toggle('hidden', tab !== 'categories');
         document.getElementById('panel-fewshots').classList.toggle('hidden', tab !== 'fewshots');
+        document.getElementById('panel-suggestions').classList.toggle('hidden', tab !== 'suggestions');
 
-        const catTab = document.getElementById('tab-categories');
-        const fsTab = document.getElementById('tab-fewshots');
-
-        catTab.classList.toggle('border-red-600', tab === 'categories');
-        catTab.classList.toggle('text-red-600', tab === 'categories');
-        catTab.classList.toggle('bg-red-50/50', tab === 'categories');
-        catTab.classList.toggle('border-transparent', tab !== 'categories');
-        catTab.classList.toggle('text-gray-500', tab !== 'categories');
-        catTab.classList.toggle('bg-transparent', tab !== 'categories');
-
-        fsTab.classList.toggle('border-red-600', tab === 'fewshots');
-        fsTab.classList.toggle('text-red-600', tab === 'fewshots');
-        fsTab.classList.toggle('bg-red-50/50', tab === 'fewshots');
-        fsTab.classList.toggle('border-transparent', tab !== 'fewshots');
-        fsTab.classList.toggle('text-gray-500', tab !== 'fewshots');
-        fsTab.classList.toggle('bg-transparent', tab !== 'fewshots');
+        const tabs = ['categories', 'fewshots', 'suggestions'];
+        tabs.forEach(t => {
+            const tabEl = document.getElementById(`tab-${t}`);
+            const isActive = t === tab;
+            tabEl.classList.toggle('border-red-600', isActive);
+            tabEl.classList.toggle('text-red-600', isActive);
+            tabEl.classList.toggle('bg-red-50/50', isActive);
+            tabEl.classList.toggle('border-transparent', !isActive);
+            tabEl.classList.toggle('text-gray-500', !isActive);
+            tabEl.classList.toggle('bg-transparent', !isActive);
+        });
     }
 
     function loadPrompts() {
@@ -172,6 +242,156 @@
         const div = document.createElement('div');
         div.textContent = text || '';
         return div.innerHTML;
+    }
+
+    function generateSuggestions() {
+        const wsId = getWorkspaceId();
+        if (!wsId) {
+            alert('Please select a workspace first');
+            return;
+        }
+
+        document.getElementById('suggestions-loader').classList.remove('hidden');
+        document.getElementById('suggestions-content').classList.add('hidden');
+        document.getElementById('suggestions-error').classList.add('hidden');
+        document.getElementById('generate-suggestions-btn').disabled = true;
+
+        fetch(`/api/workspaces/${wsId}/suggest-improvements`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(r => {
+            if (!r.ok) {
+                return r.json().then(err => { throw new Error(err.detail); });
+            }
+            return r.json();
+        })
+        .then(data => {
+            suggestionsData = data;
+            renderSuggestions(data);
+            document.getElementById('suggestions-loader').classList.add('hidden');
+            document.getElementById('suggestions-content').classList.remove('hidden');
+        })
+        .catch(err => {
+            document.getElementById('suggestions-loader').classList.add('hidden');
+            document.getElementById('suggestions-error').classList.remove('hidden');
+            document.getElementById('suggestions-error').querySelector('div').textContent = err.message;
+        })
+        .finally(() => {
+            document.getElementById('generate-suggestions-btn').disabled = false;
+        });
+    }
+
+    function renderSuggestions(data) {
+        renderSourceFeedbacks(data.feedbacks);
+        renderCategorySuggestions(data.suggestions.category_suggestions, data.feedbacks);
+        renderPriorityOrder(data.suggestions.priority_order);
+        renderUpdatedCategories(data.suggestions.updated_categories);
+        renderUpdatedFewShots(data.suggestions.updated_few_shots);
+    }
+
+    function renderSourceFeedbacks(feedbacks) {
+        const container = document.getElementById('source-feedbacks');
+        if (!feedbacks || feedbacks.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No feedback available.</p>';
+            return;
+        }
+
+        container.innerHTML = feedbacks.map(fb => `
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                <div class="flex items-start justify-between mb-2">
+                    <h4 class="font-medium text-gray-900">${escapeHtml(fb.article_headline)}</h4>
+                    <span class="flex-shrink-0 ml-2 ${fb.thumbs_up ? 'text-green-600' : 'text-red-600'}">
+                        ${fb.thumbs_up ? '&#128077;' : '&#128078;'}
+                    </span>
+                </div>
+                ${!fb.thumbs_up && fb.correct_category ? `
+                    <div class="text-sm text-gray-600 mb-2">
+                        <span class="font-medium">Correct category:</span> ${escapeHtml(fb.correct_category)}
+                    </div>
+                ` : ''}
+                <div class="text-sm text-gray-600 mb-2">
+                    <span class="font-medium">User reasoning:</span> ${escapeHtml(fb.reasoning)}
+                </div>
+                <div class="text-sm text-gray-500">
+                    <span class="font-medium">AI insight:</span> ${escapeHtml(fb.ai_insight.category)} (${Math.round(fb.ai_insight.confidence * 100)}% confidence)
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderCategorySuggestions(suggestions, feedbacks) {
+        const container = document.getElementById('category-suggestions');
+        if (!suggestions || suggestions.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No category suggestions.</p>';
+            return;
+        }
+
+        const feedbackMap = {};
+        feedbacks.forEach(fb => {
+            feedbackMap[fb.article_id] = fb.article_headline;
+        });
+
+        container.innerHTML = suggestions.map(s => {
+            const basedOnHtml = s.based_on_feedback_ids && s.based_on_feedback_ids.length > 0
+                ? `<div class="text-xs text-gray-500 mt-2">Based on: ${s.based_on_feedback_ids.map(id => {
+                    const fb = feedbacks.find(f => f.id === id);
+                    return fb ? escapeHtml(fb.article_headline) : id;
+                }).join(', ')}</div>`
+                : '';
+
+            return `
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <div class="font-medium text-gray-900 mb-1">${escapeHtml(s.category || s.suggestion || 'Suggestion')}</div>
+                    <div class="text-sm text-gray-600">${escapeHtml(s.rationale || s.description || '')}</div>
+                    ${basedOnHtml}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderPriorityOrder(priorities) {
+        const container = document.getElementById('priority-order');
+        if (!priorities || priorities.length === 0) {
+            container.innerHTML = '<li class="text-gray-500 text-sm">No priorities specified.</li>';
+            return;
+        }
+        container.innerHTML = priorities.map(p => `<li>${escapeHtml(p)}</li>`).join('');
+    }
+
+    function renderUpdatedCategories(updatedCategories) {
+        const container = document.getElementById('updated-categories-content');
+        if (!updatedCategories || updatedCategories.length === 0) {
+            container.textContent = 'No updated categories.';
+            return;
+        }
+        container.textContent = JSON.stringify(updatedCategories, null, 2);
+    }
+
+    function renderUpdatedFewShots(updatedFewShots) {
+        const container = document.getElementById('updated-fewshots-content');
+        if (!updatedFewShots || updatedFewShots.length === 0) {
+            container.textContent = 'No updated few-shot examples.';
+            return;
+        }
+        container.textContent = JSON.stringify(updatedFewShots, null, 2);
+    }
+
+    function toggleSection(sectionId) {
+        const section = document.getElementById(sectionId);
+        const arrow = document.getElementById(sectionId + '-arrow');
+        section.classList.toggle('hidden');
+        arrow.style.transform = section.classList.contains('hidden') ? '' : 'rotate(90deg)';
+    }
+
+    function copyUpdatedCategories() {
+        const content = document.getElementById('updated-categories-content').textContent;
+        navigator.clipboard.writeText(content).then(() => alert('Copied to clipboard!'));
+    }
+
+    function copyUpdatedFewShots() {
+        const content = document.getElementById('updated-fewshots-content').textContent;
+        navigator.clipboard.writeText(content).then(() => alert('Copied to clipboard!'));
     }
 
     document.getElementById('workspace-selector').addEventListener('change', loadPrompts);

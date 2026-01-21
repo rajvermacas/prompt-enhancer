@@ -69,3 +69,19 @@ class ImprovementSuggestion(BaseModel):
     priority_order: list[str]
     updated_categories: list[UpdatedCategory] = Field(default_factory=list)
     updated_few_shots: list[UpdatedFewShot] = Field(default_factory=list)
+
+
+class FeedbackWithHeadline(BaseModel):
+    id: str
+    article_id: str
+    article_headline: str
+    thumbs_up: bool
+    correct_category: str
+    reasoning: str
+    ai_insight: AIInsight
+    created_at: datetime
+
+
+class ImprovementSuggestionResponse(BaseModel):
+    suggestions: ImprovementSuggestion
+    feedbacks: list[FeedbackWithHeadline]
