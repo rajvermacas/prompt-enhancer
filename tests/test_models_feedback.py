@@ -135,3 +135,33 @@ def test_few_shot_suggestion_item_creation():
     assert item.action == "add"
     assert item.source == "user_article"
     assert item.based_on_feedback_id == "fb-001"
+
+
+def test_updated_category_with_traceability_fields():
+    """UpdatedCategory includes traceability fields for feedback linkage."""
+    from app.models.feedback import UpdatedCategory
+
+    cat = UpdatedCategory(
+        category="Technology",
+        updated_definition="News about technology companies and their products",
+        based_on_feedback_ids=["fb-001", "fb-002"],
+        rationale="Definition was too vague, did not distinguish earnings from product news",
+    )
+
+    assert cat.category == "Technology"
+    assert cat.updated_definition == "News about technology companies and their products"
+    assert cat.based_on_feedback_ids == ["fb-001", "fb-002"]
+    assert "too vague" in cat.rationale
+
+
+def test_updated_category_traceability_fields_default_to_empty():
+    """UpdatedCategory traceability fields default to empty when not provided."""
+    from app.models.feedback import UpdatedCategory
+
+    cat = UpdatedCategory(
+        category="Finance",
+        updated_definition="Financial news and earnings reports",
+    )
+
+    assert cat.based_on_feedback_ids == []
+    assert cat.rationale == ""

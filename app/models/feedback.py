@@ -49,6 +49,8 @@ class EvaluationReport(BaseModel):
 class UpdatedCategory(BaseModel):
     category: str
     updated_definition: str
+    based_on_feedback_ids: list[str] = Field(default_factory=list)
+    rationale: str = ""
 
 
 class UpdatedFewShotExample(BaseModel):

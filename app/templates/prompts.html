@@ -586,19 +586,32 @@
 
         countEl.textContent = `${updatedCategories.length} update${updatedCategories.length !== 1 ? 's' : ''}`;
 
-        container.innerHTML = updatedCategories.map(cat => `
-            <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                <div class="flex items-center gap-2 mb-3">
+        container.innerHTML = updatedCategories.map(cat => {
+            const feedbackLinks = (cat.based_on_feedback_ids || []).map(id => {
+                const fb = feedbacks.find(f => f.id === id);
+                return fb
+                    ? `<a href="#feedback-card-${id}" onclick="highlightFeedback('${id}')" class="text-red-600 hover:underline">${escapeHtml(fb.article_headline)}</a>`
+                    : id;
+            }).join(', ');
+
+            return `
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-100">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         ${escapeHtml(cat.category)}
                     </span>
+                    <div class="text-sm text-gray-700 mt-3">
+                        <span class="font-medium">Updated definition:</span>
+                        <p class="mt-1 whitespace-pre-wrap">${escapeHtml(cat.updated_definition)}</p>
+                    </div>
+                    ${cat.rationale ? `
+                        <div class="text-sm text-gray-600 mt-2">
+                            <span class="font-medium">Rationale:</span> ${escapeHtml(cat.rationale)}
+                        </div>
+                    ` : ''}
+                    ${feedbackLinks ? `<div class="text-xs text-gray-500 mt-2">Based on: ${feedbackLinks}</div>` : ''}
                 </div>
-                <div class="text-sm text-gray-700">
-                    <span class="font-medium text-gray-900">Updated definition:</span>
-                    <p class="mt-1 whitespace-pre-wrap">${escapeHtml(cat.updated_definition)}</p>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     function renderUpdatedFewShots(updatedFewShots) {

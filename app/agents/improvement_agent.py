@@ -3,7 +3,11 @@ import json
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.models.feedback import FeedbackWithHeadline, ImprovementSuggestion
+from app.models.feedback import (
+    FeedbackWithHeadline,
+    ImprovementSuggestion,
+    UpdatedCategory,
+)
 from app.models.prompts import CategoryDefinition, FewShotExample
 
 
@@ -27,8 +31,9 @@ Respond with a JSON object containing:
 - category_suggestions: array of {category, current, suggested, rationale, based_on_feedback_ids, user_reasoning_quotes}
 - few_shot_suggestions: array of {action: "add"|"modify"|"remove", source: "user_article"|"synthetic", based_on_feedback_id, details}
 - priority_order: array of strings indicating what to fix first
-- updated_categories: array of {category, updated_definition} for changed items only
 - updated_few_shots: array of {action, source, example} for changed items only
+
+Do NOT include updated_categories - it will be derived from category_suggestions.
 
 Rules:
 - Return ONLY valid JSON (no markdown).
@@ -95,6 +100,21 @@ class ImprovementAgent:
 
         return "".join(parts)
 
+    def _derive_updated_categories(
+        self, category_suggestions: list[dict]
+    ) -> list[UpdatedCategory]:
+        """Derive updated_categories from category_suggestions for guaranteed traceability."""
+        return [
+            UpdatedCategory(
+                category=s["category"],
+                updated_definition=s["suggested"],
+                based_on_feedback_ids=s.get("based_on_feedback_ids", []),
+                rationale=s.get("rationale", ""),
+            )
+            for s in category_suggestions
+            if s.get("category") and s.get("suggested")
+        ]
+
     def _parse_response(self, response: str) -> ImprovementSuggestion:
         cleaned = response.strip()
         if cleaned.startswith("```json"):
@@ -106,10 +126,13 @@ class ImprovementAgent:
 
         data = json.loads(cleaned.strip())
 
+        category_suggestions = data.get("category_suggestions", [])
+        updated_categories = self._derive_updated_categories(category_suggestions)
+
         return ImprovementSuggestion(
-            category_suggestions=data.get("category_suggestions", []),
+            category_suggestions=category_suggestions,
             few_shot_suggestions=data.get("few_shot_suggestions", []),
             priority_order=data.get("priority_order", []),
-            updated_categories=data.get("updated_categories", []),
+            updated_categories=updated_categories,
             updated_few_shots=data.get("updated_few_shots", []),
         )
