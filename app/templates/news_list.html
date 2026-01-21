@@ -488,6 +488,13 @@
     }
 
     function renderInsight(articleId, insight) {
+        const userAnalysisSection = insight.user_requested_analysis ? `
+            <div class="mt-4 p-4 bg-white border border-gray-200 rounded-lg">
+                <h5 class="font-semibold text-gray-900 mb-2">User-Requested Analysis</h5>
+                <p class="text-gray-700 text-sm whitespace-pre-wrap">${escapeHtml(insight.user_requested_analysis)}</p>
+            </div>
+        ` : '';
+
         return `
             <div class="border-l-2 border-red-600 bg-gray-50 rounded-r-xl p-5 transition-all duration-300">
                 <div class="flex items-center justify-between mb-4">
@@ -521,6 +528,7 @@
                         </tbody>
                     </table>
                 </div>
+                ${userAnalysisSection}
                 <!-- AI Feedback Submission (hidden for future release) -->
                 <div id="feedback-section-${articleId}" class="mt-5 p-5 bg-white border border-gray-200 rounded-xl hidden">
                     <h5 class="font-semibold mb-4 text-gray-900 flex items-center gap-2">
