@@ -5,6 +5,7 @@ class NewsArticle(BaseModel):
     id: str
     headline: str
     content: str
+    date: str | None = None
 
 
 class NewsListResponse(BaseModel):

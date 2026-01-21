@@ -28,3 +28,30 @@ def test_news_list_response():
 
     assert len(response.articles) == 2
     assert response.total == 100
+
+
+def test_news_article_with_date():
+    """NewsArticle accepts optional date field as string."""
+    from app.models.news import NewsArticle
+
+    article = NewsArticle(
+        id="test-1",
+        headline="Test Headline",
+        content="Test content",
+        date="2026-01-15"
+    )
+
+    assert article.date == "2026-01-15"
+
+
+def test_news_article_without_date():
+    """NewsArticle date defaults to None."""
+    from app.models.news import NewsArticle
+
+    article = NewsArticle(
+        id="test-1",
+        headline="Test Headline",
+        content="Test content"
+    )
+
+    assert article.date is None
