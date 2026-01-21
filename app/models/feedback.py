@@ -63,6 +63,22 @@ class UpdatedFewShot(BaseModel):
     example: UpdatedFewShotExample
 
 
+class CategorySuggestionItem(BaseModel):
+    category: str
+    current: str
+    suggested: str
+    rationale: str
+    based_on_feedback_ids: list[str]
+    user_reasoning_quotes: list[str]
+
+
+class FewShotSuggestionItem(BaseModel):
+    action: str
+    source: str
+    based_on_feedback_id: str
+    details: dict
+
+
 class ImprovementSuggestion(BaseModel):
     category_suggestions: list[dict]
     few_shot_suggestions: list[dict]

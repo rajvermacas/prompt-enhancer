@@ -101,3 +101,37 @@ def test_feedback_with_headline_includes_article_content():
     )
 
     assert fb.article_content == "Full article content here"
+
+
+def test_category_suggestion_item_creation():
+    """CategorySuggestionItem holds suggestion with traceability."""
+    from app.models.feedback import CategorySuggestionItem
+
+    item = CategorySuggestionItem(
+        category="Technology",
+        current="Tech news",
+        suggested="Technology and software news",
+        rationale="More specific definition",
+        based_on_feedback_ids=["fb-001", "fb-002"],
+        user_reasoning_quotes=["User said: AI articles should be tech"],
+    )
+
+    assert item.category == "Technology"
+    assert len(item.based_on_feedback_ids) == 2
+    assert "User said" in item.user_reasoning_quotes[0]
+
+
+def test_few_shot_suggestion_item_creation():
+    """FewShotSuggestionItem holds suggestion with source type."""
+    from app.models.feedback import FewShotSuggestionItem
+
+    item = FewShotSuggestionItem(
+        action="add",
+        source="user_article",
+        based_on_feedback_id="fb-001",
+        details={"id": "ex-1", "news_content": "Test", "category": "Cat1", "reasoning": "Why"},
+    )
+
+    assert item.action == "add"
+    assert item.source == "user_article"
+    assert item.based_on_feedback_id == "fb-001"
