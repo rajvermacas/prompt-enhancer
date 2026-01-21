@@ -15,6 +15,13 @@ class AIInsight(BaseModel):
     confidence: float
 
 
+class AIInsightWithUserAnalysis(BaseModel):
+    category: str
+    reasoning_table: list[ReasoningRow]
+    confidence: float
+    user_requested_analysis: str | None = None
+
+
 class Feedback(BaseModel):
     id: str
     article_id: str

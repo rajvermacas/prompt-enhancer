@@ -165,3 +165,33 @@ def test_updated_category_traceability_fields_default_to_empty():
 
     assert cat.based_on_feedback_ids == []
     assert cat.rationale == ""
+
+
+def test_ai_insight_with_user_analysis_creation():
+    """AIInsightWithUserAnalysis includes optional user_requested_analysis field."""
+    from app.models.feedback import AIInsightWithUserAnalysis, ReasoningRow
+
+    insight = AIInsightWithUserAnalysis(
+        category="Tech",
+        reasoning_table=[
+            ReasoningRow(category_excerpt="exc", news_excerpt="news", reasoning="r")
+        ],
+        confidence=0.9,
+        user_requested_analysis="Politics was rejected because...",
+    )
+
+    assert insight.category == "Tech"
+    assert insight.user_requested_analysis == "Politics was rejected because..."
+
+
+def test_ai_insight_with_user_analysis_optional_field():
+    """AIInsightWithUserAnalysis allows None for user_requested_analysis."""
+    from app.models.feedback import AIInsightWithUserAnalysis
+
+    insight = AIInsightWithUserAnalysis(
+        category="Tech",
+        reasoning_table=[],
+        confidence=0.8,
+    )
+
+    assert insight.user_requested_analysis is None
