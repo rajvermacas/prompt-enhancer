@@ -46,6 +46,21 @@ def workspace_id(client):
     return ws_id
 
 
+def test_analyze_article_no_categories_returns_400(client):
+    """POST /api/workspaces/{id}/analyze returns 400 when no categories defined."""
+    # Create workspace without categories
+    response = client.post("/api/workspaces", json={"name": "Empty"})
+    ws_id = response.json()["id"]
+
+    response = client.post(
+        f"/api/workspaces/{ws_id}/analyze",
+        json={"article_id": "news-001"},
+    )
+
+    assert response.status_code == 400
+    assert "No categories defined" in response.json()["detail"]
+
+
 def test_analyze_article(client, workspace_id):
     """POST /api/workspaces/{id}/analyze runs analysis agent."""
     mock_insight = {

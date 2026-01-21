@@ -463,14 +463,18 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({article_id: articleId})
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) return r.json().then(e => Promise.reject(e));
+            return r.json();
+        })
         .then(data => {
             window.currentInsight = data;
             insightDiv.innerHTML = renderInsight(articleId, data);
             loadCategoriesForSelect(articleId);
         })
         .catch(err => {
-            insightDiv.innerHTML = '<div class="p-4 text-red-500">Error: ' + err.message + '</div>';
+            const msg = err.detail || err.message || 'Unknown error';
+            insightDiv.innerHTML = '<div class="p-4 text-red-500">Error: ' + msg + '</div>';
         });
     }
 

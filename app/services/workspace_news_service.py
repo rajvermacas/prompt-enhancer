@@ -14,6 +14,14 @@ class CSVValidationError(Exception):
     pass
 
 
+class ArticleNotFoundError(Exception):
+    """Raised when an article is not found in the workspace."""
+
+    def __init__(self, article_id: str):
+        self.article_id = article_id
+        super().__init__(f"Article not found: {article_id}")
+
+
 class WorkspaceNewsService:
     def __init__(self, workspaces_path: Path, default_news_path: Path):
         self.workspaces_path = Path(workspaces_path)
@@ -94,6 +102,23 @@ class WorkspaceNewsService:
             page=page,
             limit=limit
         )
+
+    def get_article(self, workspace_id: str, article_id: str) -> NewsArticle:
+        news_source = self.get_news_source(workspace_id)
+        uploaded = self._load_uploaded_news(workspace_id)
+
+        if news_source == NewsSource.REPLACE and uploaded:
+            articles = uploaded
+        elif news_source == NewsSource.REPLACE and not uploaded:
+            articles = self._load_default_news()
+        else:  # MERGE
+            articles = uploaded + self._load_default_news()
+
+        for article in articles:
+            if article.id == article_id:
+                return article
+
+        raise ArticleNotFoundError(article_id)
 
     def add_article(
         self, workspace_id: str, headline: str, content: str, date: str

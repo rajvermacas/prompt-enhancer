@@ -247,3 +247,79 @@ def test_get_news_pagination(workspaces_dir, workspace_with_metadata, default_ne
     assert response.page == 2
     assert response.limit == 2
     assert response.total == 5
+
+
+def test_get_article_from_uploaded_news(workspaces_dir, workspace_with_metadata, default_news_csv):
+    """get_article finds article from uploaded news."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+    added = service.add_article(
+        workspace_with_metadata, "Uploaded Article", "Uploaded content", "2026-01-15"
+    )
+
+    article = service.get_article(workspace_with_metadata, added.id)
+
+    assert article.id == added.id
+    assert article.headline == "Uploaded Article"
+    assert article.content == "Uploaded content"
+
+
+def test_get_article_from_default_news(workspaces_dir, workspace_with_metadata, default_news_csv):
+    """get_article finds article from default news when in merge mode."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+
+    article = service.get_article(workspace_with_metadata, "default-0")
+
+    assert article.id == "default-0"
+    assert article.headline == "Default Headline 0"
+
+
+def test_get_article_from_default_in_replace_mode_fallback(
+    workspaces_dir, workspace_with_metadata, default_news_csv
+):
+    """get_article finds article from default news when in replace mode with no uploads."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+    from app.models.news import NewsSource
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+    service.set_news_source(workspace_with_metadata, NewsSource.REPLACE)
+
+    article = service.get_article(workspace_with_metadata, "default-0")
+
+    assert article.id == "default-0"
+
+
+def test_get_article_not_found(workspaces_dir, workspace_with_metadata, default_news_csv):
+    """get_article raises ArticleNotFoundError when article doesn't exist."""
+    from app.services.workspace_news_service import (
+        WorkspaceNewsService,
+        ArticleNotFoundError
+    )
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+
+    with pytest.raises(ArticleNotFoundError) as exc:
+        service.get_article(workspace_with_metadata, "nonexistent-id")
+
+    assert "nonexistent-id" in str(exc.value)
+
+
+def test_get_article_replace_mode_excludes_default(
+    workspaces_dir, workspace_with_metadata, default_news_csv
+):
+    """get_article doesn't find default articles when in replace mode with uploads."""
+    from app.services.workspace_news_service import (
+        WorkspaceNewsService,
+        ArticleNotFoundError
+    )
+    from app.models.news import NewsSource
+
+    service = WorkspaceNewsService(workspaces_dir, default_news_csv)
+    service.add_article(workspace_with_metadata, "Uploaded", "Content", "2026-01-01")
+    service.set_news_source(workspace_with_metadata, NewsSource.REPLACE)
+
+    with pytest.raises(ArticleNotFoundError):
+        service.get_article(workspace_with_metadata, "default-0")

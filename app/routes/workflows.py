@@ -12,7 +12,7 @@ from app.agents.chat_reasoning_agent import ChatReasoningAgent
 from app.agents.evaluation_agent import EvaluationAgent
 from app.agents.improvement_agent import ImprovementAgent
 from app.agents.llm_provider import get_llm
-from app.dependencies import get_news_service, get_settings, get_workspace_service
+from app.dependencies import get_settings, get_workspace_news_service, get_workspace_service
 from app.models.chat import ChatReasoningRequest
 from app.models.feedback import (
     AIInsight,
@@ -23,8 +23,11 @@ from app.models.feedback import (
     ImprovementSuggestionResponse,
 )
 from app.services.feedback_service import FeedbackNotFoundError, FeedbackService
-from app.services.news_service import ArticleNotFoundError, NewsService
 from app.services.prompt_service import PromptService
+from app.services.workspace_news_service import (
+    ArticleNotFoundError,
+    WorkspaceNewsService,
+)
 from app.services.workspace_service import WorkspaceNotFoundError, WorkspaceService
 
 router = APIRouter(prefix="/workspaces/{workspace_id}", tags=["workflows"])
@@ -47,7 +50,7 @@ def analyze_article(
     workspace_id: str,
     request: AnalyzeRequest,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    news_service: NewsService = Depends(get_news_service),
+    workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     settings = get_settings()
 
@@ -57,7 +60,7 @@ def analyze_article(
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     try:
-        article = news_service.get_article(request.article_id)
+        article = workspace_news_service.get_article(workspace_id, request.article_id)
     except ArticleNotFoundError:
         raise HTTPException(status_code=404, detail="Article not found")
 
@@ -66,6 +69,12 @@ def analyze_article(
 
     categories = prompt_service.get_categories().categories
     few_shots = prompt_service.get_few_shots().examples
+
+    if not categories:
+        raise HTTPException(
+            status_code=400,
+            detail="No categories defined in workspace. Please add at least one category before analyzing articles.",
+        )
 
     with open(settings.system_prompt_path) as f:
         system_prompt = f.read()
@@ -138,7 +147,7 @@ def list_feedback(
 def list_feedback_with_headlines(
     workspace_id: str,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    news_service: NewsService = Depends(get_news_service),
+    workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     settings = get_settings()
 
@@ -151,7 +160,7 @@ def list_feedback_with_headlines(
     feedback_service = FeedbackService(workspace_dir)
     feedbacks = feedback_service.list_feedback()
 
-    return _enrich_feedbacks_with_headlines(feedbacks, news_service)
+    return _enrich_feedbacks_with_headlines(feedbacks, workspace_id, workspace_news_service)
 
 
 @router.delete("/feedback/{feedback_id}")
@@ -182,7 +191,7 @@ def delete_feedback(
 def suggest_improvements(
     workspace_id: str,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    news_service: NewsService = Depends(get_news_service),
+    workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     settings = get_settings()
 
@@ -203,7 +212,7 @@ def suggest_improvements(
         raise HTTPException(status_code=400, detail="No feedback available")
 
     feedbacks_with_headlines = _enrich_feedbacks_with_headlines(
-        feedbacks, news_service
+        feedbacks, workspace_id, workspace_news_service
     )
 
     llm = get_llm(settings)
@@ -218,12 +227,13 @@ def suggest_improvements(
 
 def _enrich_feedbacks_with_headlines(
     feedbacks: list[Feedback],
-    news_service: NewsService,
+    workspace_id: str,
+    workspace_news_service: WorkspaceNewsService,
 ) -> list[FeedbackWithHeadline]:
     enriched = []
     for feedback in feedbacks:
         try:
-            article = news_service.get_article(feedback.article_id)
+            article = workspace_news_service.get_article(workspace_id, feedback.article_id)
             headline = article.headline
             content = article.content
         except ArticleNotFoundError:
@@ -251,7 +261,7 @@ def chat_reasoning(
     workspace_id: str,
     request: ChatReasoningRequest,
     workspace_service: WorkspaceService = Depends(get_workspace_service),
-    news_service: NewsService = Depends(get_news_service),
+    workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     settings = get_settings()
 
@@ -261,7 +271,7 @@ def chat_reasoning(
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     try:
-        article = news_service.get_article(request.article_id)
+        article = workspace_news_service.get_article(workspace_id, request.article_id)
     except ArticleNotFoundError:
         raise HTTPException(status_code=404, detail="Article not found")
 
