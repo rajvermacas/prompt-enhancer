@@ -19,3 +19,7 @@ class PromptConfig(BaseModel):
 
 class FewShotConfig(BaseModel):
     examples: list[FewShotExample]
+
+
+class SystemPromptConfig(BaseModel):
+    content: str

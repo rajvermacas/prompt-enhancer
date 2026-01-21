@@ -38,3 +38,31 @@ def test_prompt_config_holds_all_definitions():
     )
 
     assert len(config.categories) == 2
+
+
+def test_system_prompt_config_creation():
+    """SystemPromptConfig stores content string."""
+    from app.models.prompts import SystemPromptConfig
+
+    config = SystemPromptConfig(content="Mention why other categories were not selected")
+
+    assert config.content == "Mention why other categories were not selected"
+
+
+def test_system_prompt_config_empty_content():
+    """SystemPromptConfig allows empty content string."""
+    from app.models.prompts import SystemPromptConfig
+
+    config = SystemPromptConfig(content="")
+
+    assert config.content == ""
+
+
+def test_system_prompt_config_missing_content():
+    """SystemPromptConfig raises ValidationError when content is missing."""
+    import pytest
+    from pydantic import ValidationError
+    from app.models.prompts import SystemPromptConfig
+
+    with pytest.raises(ValidationError):
+        SystemPromptConfig()
