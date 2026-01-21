@@ -1,10 +1,12 @@
 import csv
 import io
+import json
 import uuid
 from pathlib import Path
 from typing import BinaryIO
 
-from app.models.news import NewsArticle
+from app.models.news import NewsArticle, NewsSource
+from app.models.workspace import WorkspaceMetadata
 
 
 class CSVValidationError(Exception):
@@ -19,6 +21,26 @@ class WorkspaceNewsService:
 
     def _get_uploaded_news_path(self, workspace_id: str) -> Path:
         return self.workspaces_path / workspace_id / "uploaded_news.csv"
+
+    def _get_metadata_path(self, workspace_id: str) -> Path:
+        return self.workspaces_path / workspace_id / "metadata.json"
+
+    def _load_metadata(self, workspace_id: str) -> WorkspaceMetadata:
+        with open(self._get_metadata_path(workspace_id)) as f:
+            return WorkspaceMetadata.model_validate(json.load(f))
+
+    def _save_metadata(self, workspace_id: str, metadata: WorkspaceMetadata) -> None:
+        with open(self._get_metadata_path(workspace_id), "w") as f:
+            json.dump(metadata.model_dump(mode="json"), f, indent=2)
+
+    def get_news_source(self, workspace_id: str) -> NewsSource:
+        metadata = self._load_metadata(workspace_id)
+        return metadata.news_source
+
+    def set_news_source(self, workspace_id: str, source: NewsSource) -> None:
+        metadata = self._load_metadata(workspace_id)
+        metadata.news_source = source
+        self._save_metadata(workspace_id, metadata)
 
     def add_article(
         self, workspace_id: str, headline: str, content: str, date: str

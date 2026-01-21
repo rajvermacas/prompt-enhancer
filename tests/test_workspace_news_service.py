@@ -148,3 +148,27 @@ def test_upload_csv_duplicate_ids(workspaces_dir, workspace_with_metadata):
         service.upload_csv(workspace_with_metadata, file)
 
     assert "duplicate" in str(exc.value).lower()
+
+
+def test_get_news_source_default(workspaces_dir, workspace_with_metadata):
+    """get_news_source returns merge by default."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+    from app.models.news import NewsSource
+
+    service = WorkspaceNewsService(workspaces_dir, Path("/tmp/default.csv"))
+    source = service.get_news_source(workspace_with_metadata)
+
+    assert source == NewsSource.MERGE
+
+
+def test_set_news_source(workspaces_dir, workspace_with_metadata):
+    """set_news_source updates workspace metadata."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+    from app.models.news import NewsSource
+
+    service = WorkspaceNewsService(workspaces_dir, Path("/tmp/default.csv"))
+
+    service.set_news_source(workspace_with_metadata, NewsSource.REPLACE)
+    source = service.get_news_source(workspace_with_metadata)
+
+    assert source == NewsSource.REPLACE
