@@ -1,3 +1,5 @@
+import io
+
 import pytest
 from pathlib import Path
 
@@ -77,3 +79,72 @@ def test_add_article_appends_to_existing_csv(workspaces_dir, workspace_with_meta
         lines = f.readlines()
 
     assert len(lines) == 3  # header + 2 articles
+
+
+def test_upload_csv_success(workspaces_dir, workspace_with_metadata):
+    """upload_csv parses and stores articles from CSV."""
+    from app.services.workspace_news_service import WorkspaceNewsService
+
+    csv_content = "id,headline,content,date\n1,News One,Content one,2026-01-01\n2,News Two,Content two,2026-01-02"
+    file = io.BytesIO(csv_content.encode())
+
+    service = WorkspaceNewsService(workspaces_dir, Path("/tmp/default.csv"))
+    count = service.upload_csv(workspace_with_metadata, file)
+
+    assert count == 2
+    assert (workspaces_dir / workspace_with_metadata / "uploaded_news.csv").exists()
+
+
+def test_upload_csv_missing_columns(workspaces_dir, workspace_with_metadata):
+    """upload_csv raises error when required columns are missing."""
+    from app.services.workspace_news_service import (
+        WorkspaceNewsService,
+        CSVValidationError
+    )
+
+    csv_content = "id,headline\n1,News One"
+    file = io.BytesIO(csv_content.encode())
+
+    service = WorkspaceNewsService(workspaces_dir, Path("/tmp/default.csv"))
+
+    with pytest.raises(CSVValidationError) as exc:
+        service.upload_csv(workspace_with_metadata, file)
+
+    assert "content" in str(exc.value).lower()
+    assert "date" in str(exc.value).lower()
+
+
+def test_upload_csv_empty_file(workspaces_dir, workspace_with_metadata):
+    """upload_csv raises error for empty CSV."""
+    from app.services.workspace_news_service import (
+        WorkspaceNewsService,
+        CSVValidationError
+    )
+
+    csv_content = "id,headline,content,date\n"
+    file = io.BytesIO(csv_content.encode())
+
+    service = WorkspaceNewsService(workspaces_dir, Path("/tmp/default.csv"))
+
+    with pytest.raises(CSVValidationError) as exc:
+        service.upload_csv(workspace_with_metadata, file)
+
+    assert "empty" in str(exc.value).lower()
+
+
+def test_upload_csv_duplicate_ids(workspaces_dir, workspace_with_metadata):
+    """upload_csv raises error for duplicate IDs in file."""
+    from app.services.workspace_news_service import (
+        WorkspaceNewsService,
+        CSVValidationError
+    )
+
+    csv_content = "id,headline,content,date\n1,News One,Content,2026-01-01\n1,Duplicate,Content,2026-01-02"
+    file = io.BytesIO(csv_content.encode())
+
+    service = WorkspaceNewsService(workspaces_dir, Path("/tmp/default.csv"))
+
+    with pytest.raises(CSVValidationError) as exc:
+        service.upload_csv(workspace_with_metadata, file)
+
+    assert "duplicate" in str(exc.value).lower()
