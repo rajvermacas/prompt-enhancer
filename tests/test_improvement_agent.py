@@ -63,7 +63,7 @@ def test_improvement_agent_parses_response():
         "priority_order": ["Fix Cat1 first"]
     }'''
 
-    result = agent._parse_response(raw_response)
+    result = agent._parse_response(raw_response, feedbacks=[])
 
     assert len(result.category_suggestions) == 1
     assert result.priority_order[0] == "Fix Cat1 first"
@@ -83,7 +83,7 @@ def test_improvement_agent_parses_updated_fields():
         "updated_few_shots": [{"action": "add", "example": {"id": "ex-1", "news_content": "News", "category": "Cat1", "reasoning": "Reason"}}]
     }'''
 
-    result = agent._parse_response(raw_response)
+    result = agent._parse_response(raw_response, feedbacks=[])
 
     assert result.updated_categories[0].category == "Cat1"
     assert result.updated_categories[0].updated_definition == "New def"
@@ -127,7 +127,7 @@ def test_improvement_agent_parses_complete_few_shot_with_source():
         ]
     }'''
 
-    result = agent._parse_response(raw_response)
+    result = agent._parse_response(raw_response, feedbacks=[])
 
     assert result.updated_few_shots[0].example.news_content == "Company X reports record earnings."
     assert result.updated_few_shots[0].example.category == "Positive News"
@@ -157,7 +157,7 @@ def test_improvement_agent_derives_updated_categories_from_suggestions():
         "updated_few_shots": []
     }'''
 
-    result = agent._parse_response(raw_response)
+    result = agent._parse_response(raw_response, feedbacks=[])
 
     assert len(result.updated_categories) == 1
     assert result.updated_categories[0].category == "Technology"
@@ -197,7 +197,7 @@ def test_improvement_agent_derives_multiple_updated_categories():
         "updated_few_shots": []
     }'''
 
-    result = agent._parse_response(raw_response)
+    result = agent._parse_response(raw_response, feedbacks=[])
 
     assert len(result.updated_categories) == 2
     assert result.updated_categories[0].category == "Technology"
@@ -244,7 +244,97 @@ def test_improvement_agent_skips_incomplete_category_suggestions():
         "updated_few_shots": []
     }'''
 
-    result = agent._parse_response(raw_response)
+    result = agent._parse_response(raw_response, feedbacks=[])
 
     assert len(result.updated_categories) == 1
     assert result.updated_categories[0].category == "Technology"
+
+
+def test_improvement_agent_populates_news_content_from_feedback():
+    """ImprovementAgent populates news_content for user_article sources from feedback."""
+    from datetime import datetime
+
+    from app.agents.improvement_agent import ImprovementAgent
+    from app.models.feedback import AIInsight, FeedbackWithHeadline, ReasoningRow
+
+    mock_llm = MagicMock()
+    agent = ImprovementAgent(llm=mock_llm)
+
+    feedbacks = [
+        FeedbackWithHeadline(
+            id="fb-001",
+            article_id="news-001",
+            article_headline="Company X Reports Earnings",
+            article_content="Full article content about Company X earnings...",
+            thumbs_up=False,
+            correct_category="Financial News",
+            reasoning="This is about earnings",
+            ai_insight=AIInsight(
+                category="Technology",
+                reasoning_table=[
+                    ReasoningRow(
+                        category_excerpt="tech",
+                        news_excerpt="Company X",
+                        reasoning="Misclassified",
+                    )
+                ],
+                confidence=0.7,
+            ),
+            created_at=datetime.now(),
+        ),
+    ]
+
+    raw_response = '''{
+        "category_suggestions": [],
+        "few_shot_suggestions": [],
+        "priority_order": [],
+        "updated_few_shots": [
+            {
+                "action": "add",
+                "source": "user_article",
+                "based_on_feedback_id": "fb-001",
+                "example": {
+                    "id": "example_1",
+                    "news_content": null,
+                    "category": "Financial News",
+                    "reasoning": "Earnings report is financial news"
+                }
+            }
+        ]
+    }'''
+
+    result = agent._parse_response(raw_response, feedbacks=feedbacks)
+
+    assert result.updated_few_shots[0].example.news_content == "Full article content about Company X earnings..."
+    assert result.updated_few_shots[0].based_on_feedback_id == "fb-001"
+
+
+def test_improvement_agent_keeps_synthetic_news_content():
+    """ImprovementAgent keeps LLM-generated news_content for synthetic sources."""
+    from app.agents.improvement_agent import ImprovementAgent
+
+    mock_llm = MagicMock()
+    agent = ImprovementAgent(llm=mock_llm)
+
+    raw_response = '''{
+        "category_suggestions": [],
+        "few_shot_suggestions": [],
+        "priority_order": [],
+        "updated_few_shots": [
+            {
+                "action": "add",
+                "source": "synthetic",
+                "example": {
+                    "id": "synthetic_1",
+                    "news_content": "LLM generated synthetic news content",
+                    "category": "Positive News",
+                    "reasoning": "Synthetic example for edge case"
+                }
+            }
+        ]
+    }'''
+
+    result = agent._parse_response(raw_response, feedbacks=[])
+
+    assert result.updated_few_shots[0].example.news_content == "LLM generated synthetic news content"
+    assert result.updated_few_shots[0].source == "synthetic"

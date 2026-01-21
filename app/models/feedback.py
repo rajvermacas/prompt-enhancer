@@ -73,6 +73,7 @@ class UpdatedFewShot(BaseModel):
     action: str
     example: UpdatedFewShotExample
     source: str | None = None
+    based_on_feedback_id: str | None = None
 
 
 class CategorySuggestionItem(BaseModel):
