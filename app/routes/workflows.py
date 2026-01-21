@@ -1,15 +1,19 @@
+import json
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.agents.analysis_agent import AnalysisAgent
+from app.agents.chat_reasoning_agent import ChatReasoningAgent
 from app.agents.evaluation_agent import EvaluationAgent
 from app.agents.improvement_agent import ImprovementAgent
 from app.agents.llm_provider import get_llm
 from app.dependencies import get_news_service, get_settings, get_workspace_service
+from app.models.chat import ChatReasoningRequest
 from app.models.feedback import AIInsight, EvaluationReport, Feedback, ImprovementSuggestion
 from app.services.feedback_service import FeedbackService
 from app.services.news_service import ArticleNotFoundError, NewsService
@@ -150,3 +154,50 @@ def suggest_improvements(
     agent = ImprovementAgent(llm=llm)
 
     return agent.suggest_improvements(reports, categories, few_shots)
+
+
+@router.post("/chat-reasoning")
+def chat_reasoning(
+    workspace_id: str,
+    request: ChatReasoningRequest,
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+    news_service: NewsService = Depends(get_news_service),
+):
+    settings = get_settings()
+
+    try:
+        workspace_service.get_workspace(workspace_id)
+    except WorkspaceNotFoundError:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    try:
+        article = news_service.get_article(request.article_id)
+    except ArticleNotFoundError:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    workspace_dir = Path(settings.workspaces_path) / workspace_id
+    prompt_service = PromptService(workspace_dir)
+
+    categories = prompt_service.get_categories().categories
+    few_shots = prompt_service.get_few_shots().examples
+
+    llm = get_llm(settings)
+    agent = ChatReasoningAgent(llm=llm)
+
+    def generate():
+        for token in agent.stream(
+            article_content=article.content,
+            categories=categories,
+            few_shots=few_shots,
+            ai_insight=request.ai_insight,
+            chat_history=request.chat_history,
+            message=request.message,
+        ):
+            yield f"data: {json.dumps({'token': token})}\n\n"
+        yield f"data: {json.dumps({'done': True})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

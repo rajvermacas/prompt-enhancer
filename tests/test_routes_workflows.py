@@ -101,3 +101,76 @@ def test_submit_feedback(client, workspace_id):
     assert response.status_code == 200
     data = response.json()
     assert "summary" in data
+
+
+def test_chat_reasoning_streams_response(client, workspace_id):
+    """POST /api/workspaces/{id}/chat-reasoning streams SSE tokens."""
+    mock_chunks = [
+        MagicMock(content="I "),
+        MagicMock(content="chose "),
+        MagicMock(content="Tech."),
+    ]
+
+    with patch("app.routes.workflows.get_llm") as mock_get_llm:
+        mock_llm = MagicMock()
+        mock_llm.stream.return_value = iter(mock_chunks)
+        mock_get_llm.return_value = mock_llm
+
+        response = client.post(
+            f"/api/workspaces/{workspace_id}/chat-reasoning",
+            json={
+                "article_id": "news-001",
+                "ai_insight": {
+                    "category": "Cat1",
+                    "reasoning_table": [],
+                    "confidence": 0.9,
+                },
+                "message": "Why this category?",
+                "chat_history": [],
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
+
+    content = response.text
+    assert 'data: {"token": "I "}' in content
+    assert 'data: {"token": "chose "}' in content
+    assert 'data: {"token": "Tech."}' in content
+    assert 'data: {"done": true}' in content
+
+
+def test_chat_reasoning_workspace_not_found(client):
+    """POST /api/workspaces/{id}/chat-reasoning returns 404 for missing workspace."""
+    response = client.post(
+        "/api/workspaces/nonexistent/chat-reasoning",
+        json={
+            "article_id": "news-001",
+            "ai_insight": {
+                "category": "Cat1",
+                "reasoning_table": [],
+                "confidence": 0.9,
+            },
+            "message": "Why?",
+            "chat_history": [],
+        },
+    )
+    assert response.status_code == 404
+
+
+def test_chat_reasoning_article_not_found(client, workspace_id):
+    """POST /api/workspaces/{id}/chat-reasoning returns 404 for missing article."""
+    response = client.post(
+        f"/api/workspaces/{workspace_id}/chat-reasoning",
+        json={
+            "article_id": "nonexistent",
+            "ai_insight": {
+                "category": "Cat1",
+                "reasoning_table": [],
+                "confidence": 0.9,
+            },
+            "message": "Why?",
+            "chat_history": [],
+        },
+    )
+    assert response.status_code == 404
