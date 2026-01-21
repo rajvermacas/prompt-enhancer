@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ReasoningRow(BaseModel):
@@ -52,15 +52,25 @@ class UpdatedCategory(BaseModel):
 
 
 class UpdatedFewShotExample(BaseModel):
-    id: str
+    id: str | None = None
     news_content: str | None = None
     category: str | None = None
     reasoning: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_fields(cls, data: dict) -> dict:
+        if isinstance(data, dict):
+            # Handle 'article' as alias for 'news_content'
+            if "article" in data and "news_content" not in data:
+                data["news_content"] = data.pop("article")
+        return data
 
 
 class UpdatedFewShot(BaseModel):
     action: str
     example: UpdatedFewShotExample
+    source: str | None = None
 
 
 class CategorySuggestionItem(BaseModel):
