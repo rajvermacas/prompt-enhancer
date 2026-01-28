@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime
 
 
@@ -9,11 +10,13 @@ def test_workspace_metadata_creation():
         id="ws-001",
         name="Test Workspace",
         created_at=datetime.now(),
+        user_id="u-test",
     )
 
     assert metadata.id == "ws-001"
     assert metadata.name == "Test Workspace"
     assert metadata.description is None
+    assert metadata.user_id == "u-test"
 
 
 def test_workspace_metadata_with_description():
@@ -25,6 +28,7 @@ def test_workspace_metadata_with_description():
         name="Detailed Workspace",
         created_at=datetime.now(),
         description="A workspace for testing",
+        user_id="u-test",
     )
 
     assert metadata.description == "A workspace for testing"
@@ -38,7 +42,8 @@ def test_workspace_metadata_news_source_default():
     metadata = WorkspaceMetadata(
         id="ws-123",
         name="Test",
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        user_id="u-test",
     )
 
     assert metadata.news_source == NewsSource.MERGE
@@ -53,7 +58,29 @@ def test_workspace_metadata_news_source_replace():
         id="ws-123",
         name="Test",
         created_at=datetime.now(),
-        news_source=NewsSource.REPLACE
+        news_source=NewsSource.REPLACE,
+        user_id="u-test",
     )
 
     assert metadata.news_source == NewsSource.REPLACE
+
+
+def test_workspace_metadata_requires_user_id():
+    """WorkspaceMetadata requires user_id field."""
+    from pydantic import ValidationError
+    from app.models.workspace import WorkspaceMetadata
+
+    ws = WorkspaceMetadata(
+        id="ws-123",
+        name="Test",
+        created_at=datetime.now(),
+        user_id="u-abc",
+    )
+    assert ws.user_id == "u-abc"
+
+    with pytest.raises(ValidationError):
+        WorkspaceMetadata(
+            id="ws-123",
+            name="Test",
+            created_at=datetime.now(),
+        )

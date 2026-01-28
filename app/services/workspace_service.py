@@ -20,7 +20,7 @@ class WorkspaceService:
         self.workspaces_path = Path(workspaces_path)
         self.workspaces_path.mkdir(parents=True, exist_ok=True)
 
-    def create_workspace(self, name: str) -> WorkspaceMetadata:
+    def create_workspace(self, name: str, user_id: str) -> WorkspaceMetadata:
         workspace_id = f"ws-{uuid.uuid4().hex[:8]}"
         workspace_dir = self.workspaces_path / workspace_id
 
@@ -31,6 +31,7 @@ class WorkspaceService:
         metadata = WorkspaceMetadata(
             id=workspace_id,
             name=name,
+            user_id=user_id,
             created_at=datetime.now(),
         )
 
@@ -44,6 +45,15 @@ class WorkspaceService:
         for ws_dir in self.workspaces_path.iterdir():
             if ws_dir.is_dir() and (ws_dir / "metadata.json").exists():
                 workspaces.append(self._load_metadata(ws_dir))
+        return sorted(workspaces, key=lambda w: w.created_at, reverse=True)
+
+    def list_workspaces_for_user(self, user_id: str) -> list[WorkspaceMetadata]:
+        workspaces = []
+        for ws_dir in self.workspaces_path.iterdir():
+            if ws_dir.is_dir() and (ws_dir / "metadata.json").exists():
+                metadata = self._load_metadata(ws_dir)
+                if metadata.user_id == user_id:
+                    workspaces.append(metadata)
         return sorted(workspaces, key=lambda w: w.created_at, reverse=True)
 
     def get_workspace(self, workspace_id: str) -> WorkspaceMetadata:

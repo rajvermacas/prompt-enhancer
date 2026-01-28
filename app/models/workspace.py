@@ -8,6 +8,7 @@ from app.models.news import NewsSource
 class WorkspaceMetadata(BaseModel):
     id: str
     name: str
+    user_id: str
     created_at: datetime
     description: str | None = None
     news_source: NewsSource = NewsSource.MERGE
