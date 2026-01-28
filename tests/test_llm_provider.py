@@ -9,6 +9,7 @@ def test_get_openrouter_llm(monkeypatch):
     monkeypatch.setenv("NEWS_CSV_PATH", "./data/news.csv")
     monkeypatch.setenv("WORKSPACES_PATH", "./data/workspaces")
     monkeypatch.setenv("SYSTEM_PROMPT_PATH", "./prompts/system_prompt.txt")
+    monkeypatch.setenv("AUTH_DB_PATH", "./data/auth.db")
 
     from app.agents.llm_provider import get_llm
     from app.config import Settings
@@ -26,6 +27,7 @@ def test_get_llm_missing_api_key(monkeypatch):
     monkeypatch.setenv("NEWS_CSV_PATH", "./data/news.csv")
     monkeypatch.setenv("WORKSPACES_PATH", "./data/workspaces")
     monkeypatch.setenv("SYSTEM_PROMPT_PATH", "./prompts/system_prompt.txt")
+    monkeypatch.setenv("AUTH_DB_PATH", "./data/auth.db")
 
     from app.agents.llm_provider import LLMConfigurationError, get_llm
     from app.config import Settings

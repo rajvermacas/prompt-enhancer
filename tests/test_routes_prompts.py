@@ -10,6 +10,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("NEWS_CSV_PATH", str(tmp_path / "news.csv"))
     monkeypatch.setenv("WORKSPACES_PATH", str(tmp_path / "workspaces"))
     monkeypatch.setenv("SYSTEM_PROMPT_PATH", str(tmp_path / "system.txt"))
+    monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
 
     (tmp_path / "news.csv").write_text("id,headline,content\n")
     (tmp_path / "workspaces").mkdir()

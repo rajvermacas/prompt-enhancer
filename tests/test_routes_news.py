@@ -11,6 +11,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
     monkeypatch.setenv("WORKSPACES_PATH", str(tmp_path / "workspaces"))
     monkeypatch.setenv("SYSTEM_PROMPT_PATH", str(tmp_path / "system.txt"))
+    monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
 
     # Create news CSV with sample data
     csv_path = tmp_path / "news.csv"

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     news_csv_path: str
     workspaces_path: str
     system_prompt_path: str
+    auth_db_path: str
 
     @field_validator("llm_provider", mode="before")
     @classmethod
