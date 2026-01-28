@@ -117,6 +117,17 @@
                     + New
                 </button>
             </div>
+            {% if current_user %}
+            <div class="flex items-center gap-3 ml-4 border-l border-white/20 pl-4">
+                <span class="text-gray-400 text-sm">{{ current_user.email }}</span>
+                <form method="POST" action="/logout" class="inline">
+                    <button type="submit"
+                            class="text-gray-400 hover:text-white text-sm transition-colors duration-200">
+                        Logout
+                    </button>
+                </form>
+            </div>
+            {% endif %}
         </nav>
     </div>
 </header>
