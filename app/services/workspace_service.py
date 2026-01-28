@@ -1,10 +1,15 @@
 import json
+import logging
 import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from app.models.workspace import WorkspaceMetadata
+
+logger = logging.getLogger(__name__)
 
 
 class WorkspaceNotFoundError(Exception):
@@ -44,14 +49,27 @@ class WorkspaceService:
         workspaces = []
         for ws_dir in self.workspaces_path.iterdir():
             if ws_dir.is_dir() and (ws_dir / "metadata.json").exists():
-                workspaces.append(self._load_metadata(ws_dir))
+                try:
+                    workspaces.append(self._load_metadata(ws_dir))
+                except ValidationError:
+                    logger.warning(
+                        "Skipping workspace with invalid metadata: %s",
+                        ws_dir.name,
+                    )
         return sorted(workspaces, key=lambda w: w.created_at, reverse=True)
 
     def list_workspaces_for_user(self, user_id: str) -> list[WorkspaceMetadata]:
         workspaces = []
         for ws_dir in self.workspaces_path.iterdir():
             if ws_dir.is_dir() and (ws_dir / "metadata.json").exists():
-                metadata = self._load_metadata(ws_dir)
+                try:
+                    metadata = self._load_metadata(ws_dir)
+                except ValidationError:
+                    logger.warning(
+                        "Skipping workspace with invalid metadata: %s",
+                        ws_dir.name,
+                    )
+                    continue
                 if metadata.user_id == user_id:
                     workspaces.append(metadata)
         return sorted(workspaces, key=lambda w: w.created_at, reverse=True)

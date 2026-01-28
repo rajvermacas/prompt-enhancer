@@ -1,4 +1,4 @@
-from passlib.hash import bcrypt
+import bcrypt
 
 from app.db import (
     create_session as db_create_session,
@@ -20,13 +20,25 @@ class InvalidCredentialsError(Exception):
         super().__init__("Invalid email or password")
 
 
+def _hash_password(password: str) -> str:
+    return bcrypt.hashpw(
+        password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    return bcrypt.checkpw(
+        password.encode("utf-8"), password_hash.encode("utf-8")
+    )
+
+
 class AuthService:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
     def register_user(self, email: str, password: str) -> User:
         """Register a new user. Raises DuplicateEmailError if email taken."""
-        password_hash = bcrypt.hash(password)
+        password_hash = _hash_password(password)
         return create_user(self.db_path, email, password_hash)
 
     def authenticate_user(self, email: str, password: str) -> User:
@@ -36,7 +48,7 @@ class AuthService:
         except UserNotFoundError:
             raise InvalidCredentialsError()
 
-        if not bcrypt.verify(password, stored_hash):
+        if not _verify_password(password, stored_hash):
             raise InvalidCredentialsError()
 
         return get_user_by_email(self.db_path, email)
