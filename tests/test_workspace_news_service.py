@@ -29,7 +29,8 @@ def workspace_with_metadata(workspaces_dir):
         "id": ws_id,
         "name": "Test Workspace",
         "created_at": datetime.now().isoformat(),
-        "news_source": "merge"
+        "news_source": "merge",
+        "user_id": "u-test"
     }
     with open(ws_path / "metadata.json", "w") as f:
         json.dump(metadata, f)
