@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
-from app.dependencies import get_workspace_news_service
+from app.dependencies import get_current_user, get_workspace_news_service
+from app.models.auth import User
 from app.models.news import NewsArticle, NewsListResponse, NewsSource
 from app.services.workspace_news_service import (
     CSVValidationError,
@@ -34,6 +35,7 @@ class NewsSourceResponse(BaseModel):
 def add_article(
     workspace_id: str,
     request: AddArticleRequest,
+    current_user: User = Depends(get_current_user),
     service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     return service.add_article(
@@ -48,6 +50,7 @@ def add_article(
 async def upload_csv(
     workspace_id: str,
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
     service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     try:
@@ -62,6 +65,7 @@ def get_news(
     workspace_id: str,
     page: int = 1,
     limit: int = 10,
+    current_user: User = Depends(get_current_user),
     service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     return service.get_news(workspace_id, page, limit)
@@ -77,6 +81,7 @@ news_source_router = APIRouter(
 @news_source_router.get("", response_model=NewsSourceResponse)
 def get_news_source(
     workspace_id: str,
+    current_user: User = Depends(get_current_user),
     service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     return NewsSourceResponse(news_source=service.get_news_source(workspace_id))
@@ -86,6 +91,7 @@ def get_news_source(
 def set_news_source(
     workspace_id: str,
     request: NewsSourceRequest,
+    current_user: User = Depends(get_current_user),
     service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
     service.set_news_source(workspace_id, request.news_source)

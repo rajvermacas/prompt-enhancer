@@ -12,7 +12,8 @@ from app.agents.chat_reasoning_agent import ChatReasoningAgent
 from app.agents.evaluation_agent import EvaluationAgent
 from app.agents.improvement_agent import ImprovementAgent
 from app.agents.llm_provider import get_llm
-from app.dependencies import get_settings, get_workspace_news_service, get_workspace_service
+from app.dependencies import get_current_user, get_settings, get_workspace_news_service, get_workspace_service
+from app.models.auth import User
 from app.models.chat import ChatReasoningRequest
 from app.models.feedback import (
     AIInsight,
@@ -49,6 +50,7 @@ class FeedbackRequest(BaseModel):
 def analyze_article(
     workspace_id: str,
     request: AnalyzeRequest,
+    current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
     workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
@@ -91,6 +93,7 @@ def analyze_article(
 def submit_feedback(
     workspace_id: str,
     request: FeedbackRequest,
+    current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
 ):
     settings = get_settings()
@@ -130,6 +133,7 @@ def submit_feedback(
 @router.get("/feedback", response_model=list[Feedback])
 def list_feedback(
     workspace_id: str,
+    current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
 ):
     settings = get_settings()
@@ -148,6 +152,7 @@ def list_feedback(
 @router.get("/feedback-with-headlines", response_model=list[FeedbackWithHeadline])
 def list_feedback_with_headlines(
     workspace_id: str,
+    current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
     workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
@@ -169,6 +174,7 @@ def list_feedback_with_headlines(
 def delete_feedback(
     workspace_id: str,
     feedback_id: str,
+    current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
 ):
     settings = get_settings()
@@ -192,6 +198,7 @@ def delete_feedback(
 @router.post("/suggest-improvements", response_model=ImprovementSuggestionResponse)
 def suggest_improvements(
     workspace_id: str,
+    current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
     workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):
@@ -262,6 +269,7 @@ def _enrich_feedbacks_with_headlines(
 def chat_reasoning(
     workspace_id: str,
     request: ChatReasoningRequest,
+    current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
     workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
 ):

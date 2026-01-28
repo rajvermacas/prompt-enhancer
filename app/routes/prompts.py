@@ -2,7 +2,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.dependencies import get_settings, get_workspace_service
+from app.dependencies import get_current_user, get_settings, get_workspace_service
+from app.models.auth import User
 from app.models.prompts import FewShotConfig, PromptConfig, SystemPromptConfig
 from app.services.prompt_service import PromptService
 from app.services.workspace_service import WorkspaceNotFoundError, WorkspaceService
@@ -24,13 +25,17 @@ def get_prompt_service(
 
 
 @router.get("/categories", response_model=PromptConfig)
-def get_categories(service: PromptService = Depends(get_prompt_service)):
+def get_categories(
+    current_user: User = Depends(get_current_user),
+    service: PromptService = Depends(get_prompt_service),
+):
     return service.get_categories()
 
 
 @router.put("/categories", response_model=PromptConfig)
 def save_categories(
     config: PromptConfig,
+    current_user: User = Depends(get_current_user),
     service: PromptService = Depends(get_prompt_service),
 ):
     service.save_categories(config)
@@ -38,13 +43,17 @@ def save_categories(
 
 
 @router.get("/few-shots", response_model=FewShotConfig)
-def get_few_shots(service: PromptService = Depends(get_prompt_service)):
+def get_few_shots(
+    current_user: User = Depends(get_current_user),
+    service: PromptService = Depends(get_prompt_service),
+):
     return service.get_few_shots()
 
 
 @router.put("/few-shots", response_model=FewShotConfig)
 def save_few_shots(
     config: FewShotConfig,
+    current_user: User = Depends(get_current_user),
     service: PromptService = Depends(get_prompt_service),
 ):
     service.save_few_shots(config)
@@ -52,13 +61,17 @@ def save_few_shots(
 
 
 @router.get("/system-prompt", response_model=SystemPromptConfig)
-def get_system_prompt(service: PromptService = Depends(get_prompt_service)):
+def get_system_prompt(
+    current_user: User = Depends(get_current_user),
+    service: PromptService = Depends(get_prompt_service),
+):
     return service.get_system_prompt()
 
 
 @router.put("/system-prompt", response_model=SystemPromptConfig)
 def save_system_prompt(
     config: SystemPromptConfig,
+    current_user: User = Depends(get_current_user),
     service: PromptService = Depends(get_prompt_service),
 ):
     service.save_system_prompt(config)

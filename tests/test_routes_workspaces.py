@@ -21,9 +21,21 @@ def client(tmp_path, monkeypatch):
 
     get_settings.cache_clear()
 
+    from app.db import init_db
+
+    init_db(str(tmp_path / "auth.db"))
+
+    from app.services.auth_service import AuthService
+
+    auth = AuthService(str(tmp_path / "auth.db"))
+    user = auth.register_user("test@example.com", "password123")
+    session = auth.create_session(user.id)
+
     from app.main import app
 
-    return TestClient(app)
+    client = TestClient(app)
+    client.cookies.set("session_id", session.id)
+    return client
 
 
 def test_create_workspace(client):
