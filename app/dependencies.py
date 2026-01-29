@@ -9,6 +9,9 @@ from app.services.auth_service import AuthService
 from app.services.workspace_service import WorkspaceService
 from app.services.news_service import NewsService
 from app.services.workspace_news_service import WorkspaceNewsService
+from app.services.change_request_service import ChangeRequestService
+from app.services.user_service import UserService
+from app.models.auth import User, UserRole
 from app.agents.llm_provider import get_llm
 
 
@@ -77,3 +80,21 @@ def get_current_user_or_redirect(request: Request):
         return auth_service.validate_session(session_id)
     except (SessionNotFoundError, SessionExpiredError):
         raise AuthRedirectException()
+
+
+def get_change_request_service() -> ChangeRequestService:
+    settings = get_settings()
+    return ChangeRequestService(settings.workspaces_path)
+
+
+def get_user_service() -> UserService:
+    settings = get_settings()
+    return UserService(settings.auth_db_path)
+
+
+def get_current_approver(request: Request) -> User:
+    """Get current user and verify they are an approver."""
+    user = get_current_user(request)
+    if user.role != UserRole.APPROVER:
+        raise HTTPException(status_code=403, detail="Approver role required")
+    return user
