@@ -2,7 +2,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timedelta
 
-from app.models.auth import Session, User
+from app.models.auth import Session, User, UserRole
 
 
 class DuplicateEmailError(Exception):
@@ -49,7 +49,8 @@ def init_db(db_path: str) -> None:
             id TEXT PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'USER'
         )
         """
     )
@@ -67,7 +68,9 @@ def init_db(db_path: str) -> None:
     conn.close()
 
 
-def create_user(db_path: str, email: str, password_hash: str) -> User:
+def create_user(
+    db_path: str, email: str, password_hash: str, role: UserRole = UserRole.USER
+) -> User:
     """Insert a new user. Raises DuplicateEmailError if email exists."""
     user_id = f"u-{uuid.uuid4().hex[:8]}"
     created_at = datetime.now()
@@ -75,8 +78,8 @@ def create_user(db_path: str, email: str, password_hash: str) -> User:
     conn = sqlite3.connect(db_path)
     try:
         conn.execute(
-            "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-            (user_id, email, password_hash, created_at.isoformat()),
+            "INSERT INTO users (id, email, password_hash, created_at, role) VALUES (?, ?, ?, ?, ?)",
+            (user_id, email, password_hash, created_at.isoformat(), role.value),
         )
         conn.commit()
     except sqlite3.IntegrityError:
@@ -84,14 +87,16 @@ def create_user(db_path: str, email: str, password_hash: str) -> User:
     finally:
         conn.close()
 
-    return User(id=user_id, email=email, created_at=created_at)
+    return User(id=user_id, email=email, created_at=created_at, role=role)
 
 
 def get_user_by_email(db_path: str, email: str) -> User:
     """Look up a user by email. Raises UserNotFoundError if not found."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    cursor = conn.execute("SELECT id, email, created_at FROM users WHERE email = ?", (email,))
+    cursor = conn.execute(
+        "SELECT id, email, created_at, role FROM users WHERE email = ?", (email,)
+    )
     row = cursor.fetchone()
     conn.close()
 
@@ -102,6 +107,7 @@ def get_user_by_email(db_path: str, email: str) -> User:
         id=row["id"],
         email=row["email"],
         created_at=datetime.fromisoformat(row["created_at"]),
+        role=UserRole(row["role"]),
     )
 
 
@@ -109,7 +115,9 @@ def get_user_by_id(db_path: str, user_id: str) -> User:
     """Look up a user by ID. Raises UserNotFoundError if not found."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    cursor = conn.execute("SELECT id, email, created_at FROM users WHERE id = ?", (user_id,))
+    cursor = conn.execute(
+        "SELECT id, email, created_at, role FROM users WHERE id = ?", (user_id,)
+    )
     row = cursor.fetchone()
     conn.close()
 
@@ -120,6 +128,7 @@ def get_user_by_id(db_path: str, user_id: str) -> User:
         id=row["id"],
         email=row["email"],
         created_at=datetime.fromisoformat(row["created_at"]),
+        role=UserRole(row["role"]),
     )
 
 
@@ -194,3 +203,58 @@ def delete_expired_sessions(db_path: str) -> None:
     conn.execute("DELETE FROM sessions WHERE expires_at < ?", (datetime.now().isoformat(),))
     conn.commit()
     conn.close()
+
+
+def update_user_role(db_path: str, user_id: str, role: UserRole) -> None:
+    """Update the role of an existing user. Raises UserNotFoundError if not found."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute(
+        "UPDATE users SET role = ? WHERE id = ?",
+        (role.value, user_id),
+    )
+    rows_affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+
+    if rows_affected == 0:
+        raise UserNotFoundError(user_id)
+
+
+def get_all_users(db_path: str) -> list[User]:
+    """Return all users in the database."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.execute("SELECT id, email, created_at, role FROM users")
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        User(
+            id=row["id"],
+            email=row["email"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            role=UserRole(row["role"]),
+        )
+        for row in rows
+    ]
+
+
+def count_approvers(db_path: str) -> int:
+    """Return the count of users with APPROVER role."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute(
+        "SELECT COUNT(*) FROM users WHERE role = ?",
+        (UserRole.APPROVER.value,),
+    )
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+
+def is_first_user(db_path: str) -> bool:
+    """Return True if no users exist in the database."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute("SELECT COUNT(*) FROM users")
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count == 0

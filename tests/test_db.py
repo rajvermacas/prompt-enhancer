@@ -195,3 +195,148 @@ def test_delete_expired_sessions(db_path):
     count = cursor.fetchone()[0]
     conn.close()
     assert count == 1
+
+
+# --- Role-related tests ---
+
+
+def test_create_user_stores_role(db_path):
+    """create_user stores the specified role in the database."""
+    from app.db import init_db, create_user
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+    user = create_user(db_path, "approver@example.com", "hashed_pw", role=UserRole.APPROVER)
+
+    assert user.role == UserRole.APPROVER
+
+
+def test_create_user_defaults_to_user_role(db_path):
+    """create_user defaults to USER role when no role is provided."""
+    from app.db import init_db, create_user
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+    user = create_user(db_path, "test@example.com", "hashed_pw")
+
+    assert user.role == UserRole.USER
+
+
+def test_get_user_by_email_includes_role(db_path):
+    """get_user_by_email returns User with role populated."""
+    from app.db import init_db, create_user, get_user_by_email
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+    create_user(db_path, "approver@example.com", "hashed_pw", role=UserRole.APPROVER)
+
+    user = get_user_by_email(db_path, "approver@example.com")
+    assert user.role == UserRole.APPROVER
+
+
+def test_get_user_by_id_includes_role(db_path):
+    """get_user_by_id returns User with role populated."""
+    from app.db import init_db, create_user, get_user_by_id
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+    created = create_user(db_path, "approver@example.com", "hashed_pw", role=UserRole.APPROVER)
+
+    user = get_user_by_id(db_path, created.id)
+    assert user.role == UserRole.APPROVER
+
+
+def test_update_user_role(db_path):
+    """update_user_role changes the role of an existing user."""
+    from app.db import init_db, create_user, update_user_role, get_user_by_id
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+    user = create_user(db_path, "test@example.com", "hashed_pw")
+    assert user.role == UserRole.USER
+
+    update_user_role(db_path, user.id, UserRole.APPROVER)
+
+    updated_user = get_user_by_id(db_path, user.id)
+    assert updated_user.role == UserRole.APPROVER
+
+
+def test_update_user_role_raises_for_nonexistent_user(db_path):
+    """update_user_role raises UserNotFoundError for unknown user."""
+    from app.db import init_db, update_user_role, UserNotFoundError
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+
+    with pytest.raises(UserNotFoundError):
+        update_user_role(db_path, "u-nonexistent", UserRole.APPROVER)
+
+
+def test_get_all_users(db_path):
+    """get_all_users returns list of all users."""
+    from app.db import init_db, create_user, get_all_users
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+    create_user(db_path, "user1@example.com", "hashed_pw", role=UserRole.USER)
+    create_user(db_path, "user2@example.com", "hashed_pw", role=UserRole.APPROVER)
+
+    users = get_all_users(db_path)
+    assert len(users) == 2
+    emails = {u.email for u in users}
+    assert emails == {"user1@example.com", "user2@example.com"}
+
+
+def test_get_all_users_empty(db_path):
+    """get_all_users returns empty list when no users exist."""
+    from app.db import init_db, get_all_users
+
+    init_db(db_path)
+
+    users = get_all_users(db_path)
+    assert users == []
+
+
+def test_count_approvers(db_path):
+    """count_approvers returns count of users with APPROVER role."""
+    from app.db import init_db, create_user, count_approvers
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+    create_user(db_path, "user1@example.com", "hashed_pw", role=UserRole.USER)
+    create_user(db_path, "approver1@example.com", "hashed_pw", role=UserRole.APPROVER)
+    create_user(db_path, "approver2@example.com", "hashed_pw", role=UserRole.APPROVER)
+
+    count = count_approvers(db_path)
+    assert count == 2
+
+
+def test_count_approvers_zero(db_path):
+    """count_approvers returns 0 when no approvers exist."""
+    from app.db import init_db, create_user, count_approvers
+    from app.models.auth import UserRole
+
+    init_db(db_path)
+    create_user(db_path, "user@example.com", "hashed_pw", role=UserRole.USER)
+
+    count = count_approvers(db_path)
+    assert count == 0
+
+
+def test_is_first_user_true_when_no_users(db_path):
+    """is_first_user returns True when no users exist."""
+    from app.db import init_db, is_first_user
+
+    init_db(db_path)
+
+    assert is_first_user(db_path) is True
+
+
+def test_is_first_user_false_when_users_exist(db_path):
+    """is_first_user returns False when at least one user exists."""
+    from app.db import init_db, create_user, is_first_user
+
+    init_db(db_path)
+    create_user(db_path, "test@example.com", "hashed_pw")
+
+    assert is_first_user(db_path) is False
