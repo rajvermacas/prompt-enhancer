@@ -112,3 +112,85 @@ def test_list_workspaces_for_user_empty(workspaces_dir):
     workspaces = service.list_workspaces_for_user("u-noworkspaces")
 
     assert workspaces == []
+
+
+def test_init_organization_workspace_creates_workspace(workspaces_dir):
+    """init_organization_workspace creates org workspace if missing."""
+    from app.services.workspace_service import WorkspaceService
+
+    service = WorkspaceService(workspaces_dir)
+
+    service.init_organization_workspace()
+
+    org_dir = workspaces_dir / "organization"
+    assert org_dir.exists()
+    assert (org_dir / "metadata.json").exists()
+    assert (org_dir / "category_definitions.json").exists()
+    assert (org_dir / "few_shot_examples.json").exists()
+    assert (org_dir / "system_prompt.json").exists()
+    assert (org_dir / "change_requests").is_dir()
+
+    # Verify metadata has correct values
+    metadata = service.get_workspace("organization")
+    assert metadata.id == "organization"
+    assert metadata.name == "Organization"
+    assert metadata.user_id is None
+    assert metadata.is_organization is True
+
+
+def test_init_organization_workspace_skips_if_exists(workspaces_dir):
+    """init_organization_workspace does nothing if workspace exists."""
+    import json
+
+    from app.services.workspace_service import WorkspaceService
+
+    service = WorkspaceService(workspaces_dir)
+
+    # Create org workspace with custom name first
+    service.init_organization_workspace()
+    org_dir = workspaces_dir / "organization"
+    with open(org_dir / "metadata.json", "r") as f:
+        metadata = json.load(f)
+    metadata["name"] = "Custom Org Name"
+    with open(org_dir / "metadata.json", "w") as f:
+        json.dump(metadata, f)
+
+    # Call init again
+    service.init_organization_workspace()
+
+    # Verify name wasn't overwritten
+    retrieved = service.get_workspace("organization")
+    assert retrieved.name == "Custom Org Name"
+
+
+def test_list_workspaces_includes_organization(workspaces_dir):
+    """list_workspaces_for_user includes organization workspace first."""
+    from app.services.workspace_service import WorkspaceService
+
+    service = WorkspaceService(workspaces_dir)
+
+    # Init org workspace and create user workspace
+    service.init_organization_workspace()
+    service.create_workspace("User Workspace", user_id="u-user1")
+
+    workspaces = service.list_workspaces_for_user("u-user1")
+
+    # Org workspace should be first
+    assert len(workspaces) == 2
+    assert workspaces[0].id == "organization"
+    assert workspaces[0].is_organization is True
+    assert workspaces[1].is_organization is False
+
+
+def test_cannot_delete_organization_workspace(workspaces_dir):
+    """delete_workspace raises error for organization workspace."""
+    from app.services.workspace_service import (
+        OrganizationWorkspaceProtectedError,
+        WorkspaceService,
+    )
+
+    service = WorkspaceService(workspaces_dir)
+    service.init_organization_workspace()
+
+    with pytest.raises(OrganizationWorkspaceProtectedError):
+        service.delete_workspace("organization")
