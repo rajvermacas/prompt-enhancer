@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Prompt Enhancer{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-semibold text-gray-900">User Management</h1>
+    <p class="text-gray-500 mt-1">Manage user roles and permissions</p>
+</div>
+
+<!-- Users Table -->
+{% if users %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <table class="w-full">
+        <thead>
+            <tr class="bg-gray-50 border-b border-gray-100">
+                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for user in users %}
+            <tr class="hover:bg-gray-50 transition-colors duration-150" id="user-row-{{ user.id }}">
+                <td class="px-6 py-4">
+                    <span class="font-medium text-gray-900">{{ user.email }}</span>
+                    {% if user.id == current_user.id %}
+                    <span class="ml-2 text-xs text-gray-400">(you)</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4">
+                    <span id="role-badge-{{ user.id }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if user.role.value == 'APPROVER' %}bg-purple-100 text-purple-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ user.role.value }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-gray-500 text-sm">
+                    {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </td>
+                <td class="px-6 py-4">
+                    {% if user.id != current_user.id %}
+                    <button
+                        id="toggle-btn-{{ user.id }}"
+                        onclick="toggleUserRole('{{ user.id }}', '{{ user.role.value }}')"
+                        class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border transition-all duration-200 hover:-translate-y-0.5 {% if user.role.value == 'APPROVER' %}border-gray-300 text-gray-700 hover:bg-gray-100{% else %}border-purple-600 text-purple-600 hover:bg-purple-50{% endif %}">
+                        {% if user.role.value == 'APPROVER' %}
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                        Demote to User
+                        {% else %}
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                        </svg>
+                        Promote to Approver
+                        {% endif %}
+                    </button>
+                    {% else %}
+                    <span class="text-gray-400 text-sm italic">Cannot change own role</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
+    <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+    </svg>
+    <p class="text-gray-500 text-lg">No users found</p>
+</div>
+{% endif %}
+
+<!-- Toast notification container -->
+<div id="toast-container" class="fixed bottom-4 right-4 z-50"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showToast(message, type) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+    toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-lg mb-2 transition-all duration-300 transform translate-x-0`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+async function toggleUserRole(userId, currentRole) {
+    const newRole = currentRole === 'APPROVER' ? 'USER' : 'APPROVER';
+    const button = document.getElementById(`toggle-btn-${userId}`);
+
+    // Disable button during request
+    button.disabled = true;
+    button.classList.add('opacity-50', 'cursor-not-allowed');
+
+    try {
+        const response = await fetch(`/api/users/${userId}/role`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ role: newRole }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to update role');
+        }
+
+        const updatedUser = await response.json();
+
+        // Update the role badge
+        const badge = document.getElementById(`role-badge-${userId}`);
+        badge.textContent = updatedUser.role;
+        if (updatedUser.role === 'APPROVER') {
+            badge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800';
+        } else {
+            badge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800';
+        }
+
+        // Update button appearance and text
+        if (updatedUser.role === 'APPROVER') {
+            button.className = 'inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border transition-all duration-200 hover:-translate-y-0.5 border-gray-300 text-gray-700 hover:bg-gray-100';
+            button.innerHTML = `
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+                Demote to User
+            `;
+        } else {
+            button.className = 'inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border transition-all duration-200 hover:-translate-y-0.5 border-purple-600 text-purple-600 hover:bg-purple-50';
+            button.innerHTML = `
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                </svg>
+                Promote to Approver
+            `;
+        }
+
+        // Update onclick handler with new role
+        button.setAttribute('onclick', `toggleUserRole('${userId}', '${updatedUser.role}')`);
+
+        showToast(`User role updated to ${updatedUser.role}`, 'success');
+
+    } catch (error) {
+        showToast(error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+}
+</script>
+{% endblock %}

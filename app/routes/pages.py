@@ -168,3 +168,28 @@ def _build_user_email_map(change_requests: list, user_service: UserService) -> d
     for user_id in user_ids:
         email_map[user_id] = _get_user_email(user_id, user_service)
     return email_map
+
+
+@router.get("/users", response_class=HTMLResponse)
+def users_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_or_redirect),
+    user_service: UserService = Depends(get_user_service),
+    change_request_service: ChangeRequestService = Depends(get_change_request_service),
+):
+    """User management page. Approver only."""
+    if current_user.role != UserRole.APPROVER:
+        raise HTTPException(status_code=403, detail="Approver access required")
+
+    users = user_service.list_users()
+    pending_count = change_request_service.count_pending_requests()
+
+    return templates.TemplateResponse(
+        "users.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "users": users,
+            "pending_count": pending_count,
+        },
+    )
