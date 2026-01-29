@@ -20,6 +20,13 @@ class UserService:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
+    def get_user(self, user_id: str) -> User:
+        """Get a user by ID.
+
+        Raises UserNotFoundError if not found.
+        """
+        return get_user_by_id(self.db_path, user_id)
+
     def list_users(self) -> list[User]:
         """Return all users."""
         return get_all_users(self.db_path)
