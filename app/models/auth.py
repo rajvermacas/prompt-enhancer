@@ -1,12 +1,19 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel
+
+
+class UserRole(str, Enum):
+    USER = "USER"
+    APPROVER = "APPROVER"
 
 
 class User(BaseModel):
     id: str
     email: str
     created_at: datetime
+    role: UserRole = UserRole.USER
 
 
 class UserCreate(BaseModel):

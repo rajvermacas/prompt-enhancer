@@ -56,3 +56,38 @@ def test_user_create_missing_password_raises():
 
     with pytest.raises(ValidationError):
         UserCreate(email="test@example.com")
+
+
+def test_user_role_enum_values():
+    """UserRole enum has USER and APPROVER values."""
+    from app.models.auth import UserRole
+
+    assert UserRole.USER.value == "USER"
+    assert UserRole.APPROVER.value == "APPROVER"
+
+
+def test_user_has_role_field():
+    """User model has role field defaulting to USER."""
+    from app.models.auth import User, UserRole
+
+    user = User(
+        id="u-12345678",
+        email="test@example.com",
+        created_at=datetime.now(),
+    )
+
+    assert user.role == UserRole.USER
+
+
+def test_user_can_be_approver():
+    """User model can have APPROVER role."""
+    from app.models.auth import User, UserRole
+
+    user = User(
+        id="u-12345678",
+        email="test@example.com",
+        created_at=datetime.now(),
+        role=UserRole.APPROVER,
+    )
+
+    assert user.role == UserRole.APPROVER
