@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Approvals - Prompt Enhancer{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-semibold text-gray-900">Change Requests</h1>
+    <p class="text-gray-500 mt-1">Review and manage prompt change requests</p>
+</div>
+
+<!-- Filter Tabs -->
+<div class="mb-6">
+    <nav class="flex gap-1 border-b border-gray-200">
+        <a href="/approvals"
+           class="px-5 py-3 font-medium text-sm border-b-2 transition-all duration-200 {{ 'border-red-600 text-red-600' if current_filter == 'all' else 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
+            All
+        </a>
+        <a href="/approvals?status=PENDING"
+           class="px-5 py-3 font-medium text-sm border-b-2 transition-all duration-200 {{ 'border-red-600 text-red-600' if current_filter == 'PENDING' else 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
+            Pending
+            {% if pending_count is defined and pending_count > 0 %}
+            <span class="ml-1 bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded-full">{{ pending_count }}</span>
+            {% endif %}
+        </a>
+        <a href="/approvals?status=APPROVED"
+           class="px-5 py-3 font-medium text-sm border-b-2 transition-all duration-200 {{ 'border-red-600 text-red-600' if current_filter == 'APPROVED' else 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
+            Approved
+        </a>
+        <a href="/approvals?status=REJECTED"
+           class="px-5 py-3 font-medium text-sm border-b-2 transition-all duration-200 {{ 'border-red-600 text-red-600' if current_filter == 'REJECTED' else 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
+            Rejected
+        </a>
+    </nav>
+</div>
+
+<!-- Change Requests Table -->
+{% if change_requests %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <table class="w-full">
+        <thead>
+            <tr class="bg-gray-50 border-b border-gray-100">
+                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prompt Type</th>
+                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitter</th>
+                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
+                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for request in change_requests %}
+            <tr class="hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+                onclick="window.location.href='/approvals/{{ request.id }}'">
+                <td class="px-6 py-4">
+                    <span class="font-medium text-gray-900">{{ request.prompt_type.value | replace('_', ' ') | title }}</span>
+                    {% if request.description %}
+                    <p class="text-sm text-gray-500 mt-1 truncate max-w-xs">{{ request.description }}</p>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-gray-700">
+                    {{ submitter_emails.get(request.submitted_by, request.submitted_by) }}
+                </td>
+                <td class="px-6 py-4 text-gray-500 text-sm">
+                    {{ request.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+                </td>
+                <td class="px-6 py-4">
+                    {% if request.status.value == 'PENDING' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        Pending
+                    </span>
+                    {% elif request.status.value == 'APPROVED' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Approved
+                    </span>
+                    {% elif request.status.value == 'REJECTED' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Rejected
+                    </span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
+    <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+    </svg>
+    <p class="text-gray-500 text-lg">No change requests found</p>
+    <p class="text-gray-400 text-sm mt-1">Change requests will appear here when users submit prompt modifications</p>
+</div>
+{% endif %}
+{% endblock %}

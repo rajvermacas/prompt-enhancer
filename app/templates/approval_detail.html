@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Change Request - Prompt Enhancer{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="/approvals" class="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1 mb-4">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+        Back to Approvals
+    </a>
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-gray-900">{{ change_request.prompt_type.value | replace('_', ' ') | title }}</h1>
+            <p class="text-gray-500 mt-1">Change Request #{{ change_request.id }}</p>
+        </div>
+        <div>
+            {% if change_request.status.value == 'PENDING' %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                Pending Review
+            </span>
+            {% elif change_request.status.value == 'APPROVED' %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                Approved
+            </span>
+            {% elif change_request.status.value == 'REJECTED' %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                Rejected
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Request Details -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">Request Details</h2>
+    <div class="grid grid-cols-2 gap-4 text-sm">
+        <div>
+            <span class="text-gray-500">Submitter:</span>
+            <span class="ml-2 text-gray-900">{{ submitter_email }}</span>
+        </div>
+        <div>
+            <span class="text-gray-500">Submitted:</span>
+            <span class="ml-2 text-gray-900">{{ change_request.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        {% if change_request.reviewed_by %}
+        <div>
+            <span class="text-gray-500">Reviewed by:</span>
+            <span class="ml-2 text-gray-900">{{ reviewer_email }}</span>
+        </div>
+        <div>
+            <span class="text-gray-500">Reviewed:</span>
+            <span class="ml-2 text-gray-900">{{ change_request.reviewed_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% if change_request.description %}
+    <div class="mt-4 pt-4 border-t border-gray-100">
+        <span class="text-gray-500 text-sm">Description:</span>
+        <p class="mt-1 text-gray-900">{{ change_request.description }}</p>
+    </div>
+    {% endif %}
+    {% if change_request.review_feedback %}
+    <div class="mt-4 pt-4 border-t border-gray-100">
+        <span class="text-gray-500 text-sm">Review Feedback:</span>
+        <p class="mt-1 text-gray-900">{{ change_request.review_feedback }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Diff View Toggle -->
+<div class="mb-4 flex items-center gap-2">
+    <span class="text-sm text-gray-500">View:</span>
+    <button onclick="setDiffView('side-by-side')" id="btn-side-by-side"
+            class="px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 text-white transition-colors duration-150">
+        Side by Side
+    </button>
+    <button onclick="setDiffView('inline')" id="btn-inline"
+            class="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-150">
+        Inline
+    </button>
+</div>
+
+<!-- Side-by-Side Diff View -->
+<div id="diff-side-by-side" class="grid grid-cols-2 gap-4 mb-6">
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="bg-gray-50 px-4 py-3 border-b border-gray-100">
+            <h3 class="font-medium text-gray-900">Current Content</h3>
+        </div>
+        <div class="p-4 overflow-x-auto">
+            <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-lg p-4">{{ current_content_json }}</pre>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="bg-green-50 px-4 py-3 border-b border-gray-100">
+            <h3 class="font-medium text-green-800">Proposed Content</h3>
+        </div>
+        <div class="p-4 overflow-x-auto">
+            <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-green-50/50 rounded-lg p-4">{{ proposed_content_json }}</pre>
+        </div>
+    </div>
+</div>
+
+<!-- Inline Diff View -->
+<div id="diff-inline" class="hidden mb-6">
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center gap-4">
+            <h3 class="font-medium text-gray-900">Changes</h3>
+            <div class="flex items-center gap-4 text-xs">
+                <span class="flex items-center gap-1">
+                    <span class="w-3 h-3 bg-red-100 border border-red-300 rounded"></span>
+                    Removed
+                </span>
+                <span class="flex items-center gap-1">
+                    <span class="w-3 h-3 bg-green-100 border border-green-300 rounded"></span>
+                    Added
+                </span>
+            </div>
+        </div>
+        <div class="p-4 overflow-x-auto">
+            <div class="grid grid-cols-1 gap-2">
+                <div class="bg-red-50 border-l-4 border-red-300 rounded-r-lg p-4">
+                    <div class="text-xs font-medium text-red-700 mb-2">- Current</div>
+                    <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono">{{ current_content_json }}</pre>
+                </div>
+                <div class="bg-green-50 border-l-4 border-green-300 rounded-r-lg p-4">
+                    <div class="text-xs font-medium text-green-700 mb-2">+ Proposed</div>
+                    <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono">{{ proposed_content_json }}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+{% if change_request.status.value == 'PENDING' %}
+    {% if is_approver and not is_own_request %}
+    <!-- Approver actions (not their own request) -->
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Review Actions</h2>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Feedback (optional)</label>
+            <textarea id="review-feedback" rows="3"
+                      class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 focus:outline-none transition-all duration-150 resize-none"
+                      placeholder="Enter feedback for the submitter..."></textarea>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="approveRequest()"
+                    class="bg-green-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-green-500 active:bg-green-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Approve
+            </button>
+            <button onclick="rejectRequest()"
+                    class="bg-red-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-red-500 active:bg-red-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Reject
+            </button>
+        </div>
+    </div>
+    {% elif is_own_request %}
+    <!-- Submitter actions for pending request -->
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Your Request</h2>
+        <p class="text-gray-500 text-sm mb-4">This request is awaiting review from an approver.</p>
+        <button onclick="withdrawRequest()"
+                class="bg-gray-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-gray-500 active:bg-gray-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            Withdraw Request
+        </button>
+    </div>
+    {% endif %}
+{% elif change_request.status.value == 'REJECTED' and is_own_request %}
+<!-- Submitter actions for rejected request -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">Request Rejected</h2>
+    {% if change_request.review_feedback %}
+    <p class="text-gray-600 mb-4">{{ change_request.review_feedback }}</p>
+    {% endif %}
+    <p class="text-gray-500 text-sm mb-4">You can revise and resubmit this request.</p>
+    <button onclick="reviseRequest()"
+            class="bg-red-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-red-500 active:bg-red-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+        </svg>
+        Revise Request
+    </button>
+</div>
+{% endif %}
+
+<!-- Error/Success Messages -->
+<div id="message-container" class="fixed bottom-4 right-4 z-50"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const requestId = '{{ change_request.id }}';
+
+    function setDiffView(view) {
+        const sideBySide = document.getElementById('diff-side-by-side');
+        const inline = document.getElementById('diff-inline');
+        const btnSideBySide = document.getElementById('btn-side-by-side');
+        const btnInline = document.getElementById('btn-inline');
+
+        if (view === 'side-by-side') {
+            sideBySide.classList.remove('hidden');
+            inline.classList.add('hidden');
+            btnSideBySide.className = 'px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 text-white transition-colors duration-150';
+            btnInline.className = 'px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-150';
+        } else {
+            sideBySide.classList.add('hidden');
+            inline.classList.remove('hidden');
+            btnSideBySide.className = 'px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-150';
+            btnInline.className = 'px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 text-white transition-colors duration-150';
+        }
+    }
+
+    function showMessage(message, isError) {
+        const container = document.getElementById('message-container');
+        const div = document.createElement('div');
+        div.className = `px-4 py-3 rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-green-600'} text-white font-medium`;
+        div.textContent = message;
+        container.appendChild(div);
+        setTimeout(() => div.remove(), 5000);
+    }
+
+    function approveRequest() {
+        const feedback = document.getElementById('review-feedback').value;
+        fetch(`/api/change-requests/${requestId}/approve`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({feedback: feedback || null})
+        })
+        .then(r => {
+            if (!r.ok) return r.json().then(e => Promise.reject(e));
+            return r.json();
+        })
+        .then(() => {
+            showMessage('Request approved successfully', false);
+            setTimeout(() => location.reload(), 1000);
+        })
+        .catch(err => {
+            showMessage('Error: ' + (err.detail || err.message || 'Failed to approve'), true);
+        });
+    }
+
+    function rejectRequest() {
+        const feedback = document.getElementById('review-feedback').value;
+        fetch(`/api/change-requests/${requestId}/reject`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({feedback: feedback || null})
+        })
+        .then(r => {
+            if (!r.ok) return r.json().then(e => Promise.reject(e));
+            return r.json();
+        })
+        .then(() => {
+            showMessage('Request rejected', false);
+            setTimeout(() => location.reload(), 1000);
+        })
+        .catch(err => {
+            showMessage('Error: ' + (err.detail || err.message || 'Failed to reject'), true);
+        });
+    }
+
+    function withdrawRequest() {
+        if (!confirm('Are you sure you want to withdraw this request?')) return;
+        fetch(`/api/change-requests/${requestId}`, {
+            method: 'DELETE'
+        })
+        .then(r => {
+            if (!r.ok) return r.json().then(e => Promise.reject(e));
+            showMessage('Request withdrawn', false);
+            setTimeout(() => window.location.href = '/approvals', 1000);
+        })
+        .catch(err => {
+            showMessage('Error: ' + (err.detail || err.message || 'Failed to withdraw'), true);
+        });
+    }
+
+    function reviseRequest() {
+        // Redirect to prompts page with the request ID to edit
+        // The prompts page will need to handle loading the proposed content for revision
+        window.location.href = '/prompts?revise=' + requestId;
+    }
+</script>
+{% endblock %}

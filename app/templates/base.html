@@ -104,6 +104,14 @@
         <nav class="flex items-center gap-6">
             <a href="/" class="nav-link text-gray-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5 {{ 'text-white border-b-2 border-red-600 pb-1' if request.path == '/' else '' }}">News</a>
             <a href="/prompts" class="nav-link text-gray-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5 {{ 'text-white border-b-2 border-red-600 pb-1' if request.path == '/prompts' else '' }}">Prompts</a>
+            {% if current_user %}
+            <a href="/approvals" class="nav-link text-gray-400 hover:text-white transition-all duration-200 hover:-translate-y-0.5 flex items-center gap-2 {{ 'text-white border-b-2 border-red-600 pb-1' if request.path.startswith('/approvals') else '' }}">
+                Approvals
+                {% if pending_count is defined and pending_count > 0 %}
+                <span class="bg-red-600 text-white text-xs font-medium px-2 py-0.5 rounded-full">{{ pending_count }}</span>
+                {% endif %}
+            </a>
+            {% endif %}
             <div class="flex items-center gap-3">
                 <select id="workspace-selector"
                         class="bg-white/10 text-white rounded-lg px-4 py-2 text-sm border-0 cursor-pointer hover:bg-white/20 transition-colors duration-200 focus:ring-2 focus:ring-red-600/50 focus:outline-none">
