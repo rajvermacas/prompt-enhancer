@@ -9,6 +9,7 @@ from app.dependencies import AuthRedirectException, get_settings
 from app.routes import pages, workspaces, news, prompts, workflows
 from app.routes.auth import router as auth_router
 from app.routes.change_requests import router as change_requests_router
+from app.routes.users import router as users_router
 from app.routes.workspace_news import router as workspace_news_router
 from app.routes.workspace_news import news_source_router
 
@@ -48,6 +49,7 @@ app.include_router(workflows.router, prefix="/api")
 app.include_router(workspace_news_router, prefix="/api")
 app.include_router(news_source_router, prefix="/api")
 app.include_router(change_requests_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 
 
 @app.get("/health")
