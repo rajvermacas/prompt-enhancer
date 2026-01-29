@@ -8,9 +8,10 @@ from app.db import (
     get_session,
     get_user_by_email,
     get_user_by_id,
+    is_first_user,
     UserNotFoundError,
 )
-from app.models.auth import Session, User
+from app.models.auth import Session, User, UserRole
 
 
 class InvalidCredentialsError(Exception):
@@ -37,9 +38,13 @@ class AuthService:
         self.db_path = db_path
 
     def register_user(self, email: str, password: str) -> User:
-        """Register a new user. Raises DuplicateEmailError if email taken."""
+        """Register a new user. Raises DuplicateEmailError if email taken.
+
+        First registered user automatically becomes APPROVER; others become USER.
+        """
         password_hash = _hash_password(password)
-        return create_user(self.db_path, email, password_hash)
+        role = UserRole.APPROVER if is_first_user(self.db_path) else UserRole.USER
+        return create_user(self.db_path, email, password_hash, role=role)
 
     def authenticate_user(self, email: str, password: str) -> User:
         """Authenticate a user. Raises InvalidCredentialsError on failure."""

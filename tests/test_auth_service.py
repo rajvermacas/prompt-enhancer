@@ -113,3 +113,26 @@ def test_logout(db_path):
 
     with pytest.raises(SessionNotFoundError):
         service.validate_session(session.id)
+
+
+def test_first_user_becomes_approver(db_path):
+    """First registered user automatically becomes APPROVER."""
+    from app.models.auth import UserRole
+    from app.services.auth_service import AuthService
+
+    service = AuthService(db_path)
+    user = service.register_user("first@example.com", "password123")
+
+    assert user.role == UserRole.APPROVER
+
+
+def test_second_user_is_regular_user(db_path):
+    """Second registered user is a regular USER."""
+    from app.models.auth import UserRole
+    from app.services.auth_service import AuthService
+
+    service = AuthService(db_path)
+    service.register_user("first@example.com", "password123")
+    second_user = service.register_user("second@example.com", "password456")
+
+    assert second_user.role == UserRole.USER
