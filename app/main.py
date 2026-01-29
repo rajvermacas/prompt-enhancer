@@ -16,6 +16,13 @@ from app.routes.workspace_news import news_source_router
 async def lifespan(app: FastAPI):
     settings = get_settings()
     init_db(settings.auth_db_path)
+
+    # Initialize organization workspace
+    from app.services.workspace_service import WorkspaceService
+
+    workspace_service = WorkspaceService(settings.workspaces_path)
+    workspace_service.init_organization_workspace()
+
     yield
 
 
