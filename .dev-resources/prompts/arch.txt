@@ -58,3 +58,9 @@ There should be a Workspace concept also where Users create a new workspace that
 
 The user can create multiple workspaces. All the workspaces states should be persisted.
 -------------------------------------
+
+The organisation workspace should be selected by default. right now no workspace is selected by default.
+----------------------------------
+
+When a user saves a prompt the alert box just says that prompt is saved even when it was sent for approval.
+When the approval workflow kicks in the alert shoulld mention that it is sent for approval.

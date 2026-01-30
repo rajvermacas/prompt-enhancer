@@ -180,13 +180,20 @@ function createLoaderHtml(text) {
         }
 
         function restoreWorkspaceSelection() {
+            const selector = document.getElementById('workspace-selector');
             const savedId = localStorage.getItem('selectedWorkspaceId');
             if (savedId) {
-                const selector = document.getElementById('workspace-selector');
                 const option = selector.querySelector(`option[value="${savedId}"]`);
                 if (option) {
                     selector.value = savedId;
+                    return;
                 }
+            }
+            // Default to organization workspace if no saved selection
+            const orgOption = selector.querySelector('option[value="organization"]');
+            if (orgOption) {
+                selector.value = 'organization';
+                localStorage.setItem('selectedWorkspaceId', 'organization');
             }
         }
 

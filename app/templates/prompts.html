@@ -318,10 +318,18 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({content})
         })
-        .then(r => r.json())
-        .then(() => {
-            systemPromptContent = content;
-            alert('System prompt saved!');
+        .then(response => {
+            if (response.status === 202) {
+                alert('Sent for approval!');
+                return;
+            } else if (response.status === 409) {
+                return response.json().then(data => {
+                    alert('Error: ' + data.detail);
+                });
+            } else {
+                systemPromptContent = content;
+                alert('System prompt saved!');
+            }
         })
         .catch(err => {
             alert('Error saving system prompt: ' + err.message);
@@ -355,7 +363,19 @@
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({categories})
-        }).then(() => alert('Categories saved!'));
+        })
+        .then(response => {
+            if (response.status === 202) {
+                alert('Sent for approval!');
+            } else if (response.status === 409) {
+                return response.json().then(data => {
+                    alert('Error: ' + data.detail);
+                });
+            } else {
+                alert('Categories saved!');
+            }
+        })
+        .catch(err => alert('Error saving categories: ' + err.message));
     }
 
     function renderFewShots() {
@@ -402,7 +422,19 @@
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({examples: fewShots})
-        }).then(() => alert('Few-shots saved!'));
+        })
+        .then(response => {
+            if (response.status === 202) {
+                alert('Sent for approval!');
+            } else if (response.status === 409) {
+                return response.json().then(data => {
+                    alert('Error: ' + data.detail);
+                });
+            } else {
+                alert('Few-shots saved!');
+            }
+        })
+        .catch(err => alert('Error saving few-shots: ' + err.message));
     }
 
     function escapeHtml(text) {
