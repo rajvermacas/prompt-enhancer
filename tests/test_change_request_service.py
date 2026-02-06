@@ -16,11 +16,58 @@ def org_workspace_dir(tmp_path):
 
     # Create initial prompt files
     with open(org_dir / "category_definitions.json", "w") as f:
-        json.dump({"categories": [{"name": "Tech", "definition": "Technology news"}]}, f)
+        json.dump(
+            {
+                "version": 1,
+                "categories": [{"name": "Tech", "definition": "Technology news"}],
+            },
+            f,
+        )
+    (org_dir / "category_definitions.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {
+                    "categories": [{"name": "Tech", "definition": "Technology news"}]
+                },
+            }
+        )
+        + "\n"
+    )
     with open(org_dir / "few_shot_examples.json", "w") as f:
-        json.dump({"examples": []}, f)
+        json.dump({"version": 1, "examples": []}, f)
+    (org_dir / "few_shot_examples.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {"examples": []},
+            }
+        )
+        + "\n"
+    )
     with open(org_dir / "system_prompt.json", "w") as f:
-        json.dump({"content": "Original system prompt"}, f)
+        json.dump({"version": 1, "content": "Original system prompt"}, f)
+    (org_dir / "system_prompt.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {"content": "Original system prompt"},
+            }
+        )
+        + "\n"
+    )
 
     return tmp_path / "workspaces"
 
@@ -46,6 +93,7 @@ def test_create_change_request(org_workspace_dir):
         "categories": [{"name": "Tech", "definition": "Updated tech"}]
     }
     assert change_request.current_content == {
+        "version": 1,
         "categories": [{"name": "Tech", "definition": "Technology news"}]
     }
     assert change_request.description == "Updating tech category"
@@ -172,7 +220,10 @@ def test_approve_change_request(org_workspace_dir):
     # Verify the prompt file was updated
     with open(org_workspace_dir / "organization" / "category_definitions.json") as f:
         saved_content = json.load(f)
-    assert saved_content == new_categories
+    assert saved_content == {
+        "version": 2,
+        "categories": new_categories["categories"],
+    }
 
 
 def test_approve_change_request_conflict(org_workspace_dir):
@@ -193,7 +244,13 @@ def test_approve_change_request_conflict(org_workspace_dir):
 
     # Simulate external change to the file
     with open(org_workspace_dir / "organization" / "category_definitions.json", "w") as f:
-        json.dump({"categories": [{"name": "Changed", "definition": "External change"}]}, f)
+        json.dump(
+            {
+                "version": 2,
+                "categories": [{"name": "Changed", "definition": "External change"}],
+            },
+            f,
+        )
 
     with pytest.raises(ChangeRequestConflictError):
         service.approve_change_request(cr.id, reviewer_id="r-admin")

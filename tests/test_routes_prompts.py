@@ -49,6 +49,7 @@ def test_get_categories_empty(client, workspace_id):
     response = client.get(f"/api/workspaces/{workspace_id}/prompts/categories")
 
     assert response.status_code == 200
+    assert response.json()["version"] == 1
     assert response.json()["categories"] == []
 
 
@@ -66,6 +67,7 @@ def test_save_categories(client, workspace_id):
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert len(response.json()["categories"]) == 1
 
 
@@ -74,6 +76,7 @@ def test_get_few_shots_empty(client, workspace_id):
     response = client.get(f"/api/workspaces/{workspace_id}/prompts/few-shots")
 
     assert response.status_code == 200
+    assert response.json()["version"] == 1
     assert response.json()["examples"] == []
 
 
@@ -96,6 +99,7 @@ def test_save_few_shots(client, workspace_id):
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert len(response.json()["examples"]) == 1
 
 
@@ -104,6 +108,7 @@ def test_get_system_prompt_empty(client, workspace_id):
     response = client.get(f"/api/workspaces/{workspace_id}/prompts/system-prompt")
 
     assert response.status_code == 200
+    assert response.json()["version"] == 1
     assert response.json()["content"] == ""
 
 
@@ -117,6 +122,7 @@ def test_save_system_prompt(client, workspace_id):
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert response.json()["content"] == "Mention why other categories were not selected"
 
 
@@ -130,6 +136,7 @@ def test_get_system_prompt_after_save(client, workspace_id):
     response = client.get(f"/api/workspaces/{workspace_id}/prompts/system-prompt")
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert response.json()["content"] == "Custom instructions here"
 
 
@@ -164,11 +171,50 @@ def org_workspace_setup(tmp_path, monkeypatch):
             "is_organization": True
         }, f)
     with open(org_dir / "category_definitions.json", "w") as f:
-        json.dump({"categories": []}, f)
+        json.dump({"version": 1, "categories": []}, f)
+    (org_dir / "category_definitions.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {"categories": []},
+            }
+        )
+        + "\n"
+    )
     with open(org_dir / "few_shot_examples.json", "w") as f:
-        json.dump({"examples": []}, f)
+        json.dump({"version": 1, "examples": []}, f)
+    (org_dir / "few_shot_examples.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {"examples": []},
+            }
+        )
+        + "\n"
+    )
     with open(org_dir / "system_prompt.json", "w") as f:
-        json.dump({"content": ""}, f)
+        json.dump({"version": 1, "content": ""}, f)
+    (org_dir / "system_prompt.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {"content": ""},
+            }
+        )
+        + "\n"
+    )
     (org_dir / "change_requests").mkdir()
 
     from app.dependencies import get_settings
@@ -255,6 +301,7 @@ def test_save_org_categories_as_approver_saves_directly(approver_client_for_org)
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert response.json()["categories"] == categories["categories"]
 
 
@@ -325,6 +372,7 @@ def test_save_org_few_shots_as_approver_saves_directly(approver_client_for_org):
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert response.json()["examples"] == few_shots["examples"]
 
 
@@ -377,6 +425,7 @@ def test_save_org_system_prompt_as_approver_saves_directly(approver_client_for_o
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert response.json()["content"] == payload["content"]
 
 
@@ -412,6 +461,7 @@ def test_save_personal_categories_as_user_saves_directly(client, workspace_id):
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert response.json()["categories"] == categories["categories"]
 
 
@@ -434,6 +484,7 @@ def test_save_personal_few_shots_as_user_saves_directly(client, workspace_id):
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert response.json()["examples"] == few_shots["examples"]
 
 
@@ -447,4 +498,49 @@ def test_save_personal_system_prompt_as_user_saves_directly(client, workspace_id
     )
 
     assert response.status_code == 200
+    assert response.json()["version"] == 2
     assert response.json()["content"] == payload["content"]
+
+
+def test_get_categories_history(client, workspace_id):
+    """GET categories history returns version history entries."""
+    response = client.get(f"/api/workspaces/{workspace_id}/prompts/categories/history")
+
+    assert response.status_code == 200
+    history = response.json()
+    assert len(history) == 1
+    assert history[0]["version"] == 1
+    assert history[0]["content"] == {"categories": []}
+
+
+def test_restore_categories_from_history(client, workspace_id):
+    """POST restore categories restores an older version as latest."""
+    client.put(
+        f"/api/workspaces/{workspace_id}/prompts/categories",
+        json={"categories": [{"name": "Cat1", "definition": "Def1"}]},
+    )
+    client.put(
+        f"/api/workspaces/{workspace_id}/prompts/categories",
+        json={"categories": [{"name": "Cat2", "definition": "Def2"}]},
+    )
+
+    response = client.post(
+        f"/api/workspaces/{workspace_id}/prompts/categories/restore",
+        json={"version": 2},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["version"] == 4
+    assert response.json()["categories"] == [{"name": "Cat1", "definition": "Def1"}]
+
+
+def test_restore_org_categories_as_user_creates_change_request(user_client_for_org):
+    """POST org restore categories as user creates a change request."""
+    response = user_client_for_org.post(
+        "/api/workspaces/organization/prompts/categories/restore",
+        json={"version": 1},
+    )
+
+    assert response.status_code == 202
+    assert response.json()["prompt_type"] == "CATEGORY_DEFINITIONS"
+    assert response.json()["proposed_content"] == {"categories": []}

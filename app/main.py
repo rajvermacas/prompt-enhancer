@@ -12,6 +12,7 @@ from app.routes.change_requests import router as change_requests_router
 from app.routes.users import router as users_router
 from app.routes.workspace_news import router as workspace_news_router
 from app.routes.workspace_news import news_source_router
+from app.services.workspace_service import WorkspaceService
 
 
 @asynccontextmanager
@@ -20,8 +21,6 @@ async def lifespan(app: FastAPI):
     init_db(settings.auth_db_path)
 
     # Initialize organization workspace
-    from app.services.workspace_service import WorkspaceService
-
     workspace_service = WorkspaceService(settings.workspaces_path)
     workspace_service.init_organization_workspace()
 

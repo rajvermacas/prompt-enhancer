@@ -106,13 +106,33 @@ def org_workspace_with_prompts(tmp_path, monkeypatch):
         }, f)
     with open(org_dir / "category_definitions.json", "w") as f:
         json.dump({
+            "version": 1,
             "categories": [
                 {"name": "Tech", "definition": "Technology news"},
                 {"name": "Finance", "definition": "Financial news"}
             ]
         }, f)
+    (org_dir / "category_definitions.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {
+                    "categories": [
+                        {"name": "Tech", "definition": "Technology news"},
+                        {"name": "Finance", "definition": "Financial news"},
+                    ]
+                },
+            }
+        )
+        + "\n"
+    )
     with open(org_dir / "few_shot_examples.json", "w") as f:
         json.dump({
+            "version": 1,
             "examples": [
                 {
                     "id": "org-ex-001",
@@ -122,8 +142,43 @@ def org_workspace_with_prompts(tmp_path, monkeypatch):
                 }
             ]
         }, f)
+    (org_dir / "few_shot_examples.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {
+                    "examples": [
+                        {
+                            "id": "org-ex-001",
+                            "news_content": "Apple releases new iPhone",
+                            "category": "Tech",
+                            "reasoning": "This is tech news about Apple",
+                        }
+                    ]
+                },
+            }
+        )
+        + "\n"
+    )
     with open(org_dir / "system_prompt.json", "w") as f:
-        json.dump({"content": "Organization system prompt"}, f)
+        json.dump({"version": 1, "content": "Organization system prompt"}, f)
+    (org_dir / "system_prompt.history.jsonl").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "updated_at": "2026-01-01T00:00:00Z",
+                "updated_by": "system",
+                "source": "initialization",
+                "change_request_id": None,
+                "content": {"content": "Organization system prompt"},
+            }
+        )
+        + "\n"
+    )
     (org_dir / "change_requests").mkdir()
 
     from app.dependencies import get_settings

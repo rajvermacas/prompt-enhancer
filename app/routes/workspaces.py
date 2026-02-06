@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.dependencies import get_current_user, get_settings, get_workspace_service
 from app.models.auth import User
+from app.models.prompts import FewShotConfig, PromptConfig, SystemPromptConfig
 from app.models.workspace import WorkspaceMetadata
 from app.services.prompt_service import PromptService
 from app.services.workspace_service import WorkspaceNotFoundError, WorkspaceService
@@ -97,8 +98,23 @@ def copy_from_organization(
     org_system_prompt = org_prompt_service.get_system_prompt()
 
     # Save to user workspace
-    user_prompt_service.save_categories(org_categories)
-    user_prompt_service.save_few_shots(org_few_shots)
-    user_prompt_service.save_system_prompt(org_system_prompt)
+    user_prompt_service.save_categories(
+        config=PromptConfig(categories=org_categories.categories),
+        updated_by=current_user.id,
+        source="direct_save",
+        change_request_id=None,
+    )
+    user_prompt_service.save_few_shots(
+        config=FewShotConfig(examples=org_few_shots.examples),
+        updated_by=current_user.id,
+        source="direct_save",
+        change_request_id=None,
+    )
+    user_prompt_service.save_system_prompt(
+        config=SystemPromptConfig(content=org_system_prompt.content),
+        updated_by=current_user.id,
+        source="direct_save",
+        change_request_id=None,
+    )
 
     return {"success": True}

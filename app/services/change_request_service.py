@@ -11,14 +11,8 @@ from app.models.change_request import (
     ChangeRequestStatus,
     PromptType,
 )
-
-
-# Mapping from PromptType to the corresponding file name
-PROMPT_TYPE_TO_FILE: dict[PromptType, str] = {
-    PromptType.CATEGORY_DEFINITIONS: "category_definitions.json",
-    PromptType.FEW_SHOTS: "few_shot_examples.json",
-    PromptType.SYSTEM_PROMPT: "system_prompt.json",
-}
+from app.models.prompts import FewShotConfig, PromptConfig, SystemPromptConfig
+from app.services.prompt_service import PromptService
 
 
 class ChangeRequestNotFoundError(Exception):
@@ -190,7 +184,12 @@ class ChangeRequestService:
             )
 
         # Apply the changes to the prompt file
-        self._save_prompt_content(change_request.prompt_type, change_request.proposed_content)
+        self._save_prompt_content(
+            prompt_type=change_request.prompt_type,
+            content=change_request.proposed_content,
+            updated_by=reviewer_id,
+            change_request_id=request_id,
+        )
 
         # Update the change request status
         change_request.status = ChangeRequestStatus.APPROVED
@@ -331,32 +330,49 @@ class ChangeRequestService:
 
     def _load_current_content(self, prompt_type: PromptType) -> dict[str, Any]:
         """Load the current content for the given prompt type."""
-        filename = PROMPT_TYPE_TO_FILE[prompt_type]
-        filepath = self.org_workspace_path / filename
-        if not filepath.exists():
-            # Return empty structure based on prompt type
-            return self._get_empty_content_for_type(prompt_type)
-        with open(filepath) as f:
-            return json.load(f)
-
-    def _get_empty_content_for_type(self, prompt_type: PromptType) -> dict[str, Any]:
-        """Return empty content structure for the given prompt type."""
+        prompt_service = PromptService(self.org_workspace_path)
         if prompt_type == PromptType.CATEGORY_DEFINITIONS:
-            return {"categories": []}
+            return prompt_service.get_categories().model_dump()
         if prompt_type == PromptType.FEW_SHOTS:
-            return {"examples": []}
+            return prompt_service.get_few_shots().model_dump()
         if prompt_type == PromptType.SYSTEM_PROMPT:
-            return {"content": ""}
+            return prompt_service.get_system_prompt().model_dump()
         raise ValueError(f"Unknown prompt type: {prompt_type}")
 
     def _save_prompt_content(
-        self, prompt_type: PromptType, content: dict[str, Any]
+        self,
+        prompt_type: PromptType,
+        content: dict[str, Any],
+        updated_by: str,
+        change_request_id: str,
     ) -> None:
         """Save content to the prompt file."""
-        filename = PROMPT_TYPE_TO_FILE[prompt_type]
-        filepath = self.org_workspace_path / filename
-        with open(filepath, "w") as f:
-            json.dump(content, f, indent=2)
+        prompt_service = PromptService(self.org_workspace_path)
+        if prompt_type == PromptType.CATEGORY_DEFINITIONS:
+            prompt_service.save_categories(
+                config=PromptConfig.model_validate(content),
+                updated_by=updated_by,
+                source="approved_change_request",
+                change_request_id=change_request_id,
+            )
+            return
+        if prompt_type == PromptType.FEW_SHOTS:
+            prompt_service.save_few_shots(
+                config=FewShotConfig.model_validate(content),
+                updated_by=updated_by,
+                source="approved_change_request",
+                change_request_id=change_request_id,
+            )
+            return
+        if prompt_type == PromptType.SYSTEM_PROMPT:
+            prompt_service.save_system_prompt(
+                config=SystemPromptConfig.model_validate(content),
+                updated_by=updated_by,
+                source="approved_change_request",
+                change_request_id=change_request_id,
+            )
+            return
+        raise ValueError(f"Unknown prompt type: {prompt_type}")
 
     def _save_change_request(self, change_request: ChangeRequest) -> None:
         """Save a change request to disk."""

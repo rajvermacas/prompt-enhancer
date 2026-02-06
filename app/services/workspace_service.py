@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from app.services.prompt_service import PromptService
 from app.models.workspace import WorkspaceMetadata
 
 logger = logging.getLogger(__name__)
@@ -75,12 +76,7 @@ class WorkspaceService:
         self._save_metadata(org_dir, metadata)
 
         # Initialize prompt files
-        with open(org_dir / "category_definitions.json", "w") as f:
-            json.dump({"categories": []}, f)
-        with open(org_dir / "few_shot_examples.json", "w") as f:
-            json.dump({"examples": []}, f)
-        with open(org_dir / "system_prompt.json", "w") as f:
-            json.dump({"prompt": ""}, f)
+        PromptService.initialize_prompt_storage(org_dir, updated_by="system")
 
     def list_workspaces(self) -> list[WorkspaceMetadata]:
         workspaces = []
@@ -156,7 +152,4 @@ class WorkspaceService:
             return WorkspaceMetadata.model_validate(json.load(f))
 
     def _init_empty_prompts(self, workspace_dir: Path) -> None:
-        with open(workspace_dir / "category_definitions.json", "w") as f:
-            json.dump({"categories": []}, f)
-        with open(workspace_dir / "few_shot_examples.json", "w") as f:
-            json.dump({"examples": []}, f)
+        PromptService.initialize_prompt_storage(workspace_dir, updated_by="system")
