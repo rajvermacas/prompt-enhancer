@@ -11,6 +11,7 @@ from app.services.news_service import NewsService
 from app.services.workspace_news_service import WorkspaceNewsService
 from app.services.change_request_service import ChangeRequestService
 from app.services.user_service import UserService
+from app.services.analysis_history_service import AnalysisHistoryService
 from app.models.auth import User, UserRole
 from app.agents.llm_provider import get_llm
 
@@ -90,6 +91,11 @@ def get_change_request_service() -> ChangeRequestService:
 def get_user_service() -> UserService:
     settings = get_settings()
     return UserService(settings.auth_db_path)
+
+
+def get_analysis_history_service() -> AnalysisHistoryService:
+    settings = get_settings()
+    return AnalysisHistoryService(settings.auth_db_path)
 
 
 def get_current_approver(request: Request) -> User:

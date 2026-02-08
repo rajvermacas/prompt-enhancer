@@ -8,7 +8,7 @@ def db_path(tmp_path):
 
 
 def test_init_db_creates_tables(db_path):
-    """init_db creates users and sessions tables."""
+    """init_db creates all expected tables."""
     from app.db import init_db
     import sqlite3
 
@@ -21,6 +21,25 @@ def test_init_db_creates_tables(db_path):
 
     assert "users" in tables
     assert "sessions" in tables
+    assert "analysis_runs" in tables
+
+
+def test_init_db_creates_analysis_run_indexes(db_path):
+    """init_db creates query indexes for analysis run history."""
+    from app.db import init_db
+    import sqlite3
+
+    init_db(db_path)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='analysis_runs'"
+    )
+    indexes = {row[0] for row in cursor.fetchall()}
+    conn.close()
+
+    assert "idx_analysis_runs_lookup" in indexes
+    assert "idx_analysis_runs_user_recent" in indexes
 
 
 def test_create_user(db_path):

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -12,7 +12,14 @@ from app.agents.chat_reasoning_agent import ChatReasoningAgent
 from app.agents.evaluation_agent import EvaluationAgent
 from app.agents.improvement_agent import ImprovementAgent
 from app.agents.llm_provider import get_llm
-from app.dependencies import get_current_user, get_settings, get_workspace_news_service, get_workspace_service
+from app.dependencies import (
+    get_analysis_history_service,
+    get_current_user,
+    get_settings,
+    get_workspace_news_service,
+    get_workspace_service,
+)
+from app.models.analysis_history import AnalysisHistoryPage
 from app.models.auth import User
 from app.models.chat import ChatReasoningRequest
 from app.models.feedback import (
@@ -24,6 +31,7 @@ from app.models.feedback import (
     ImprovementSuggestionResponse,
 )
 from app.services.feedback_service import FeedbackNotFoundError, FeedbackService
+from app.services.analysis_history_service import AnalysisHistoryService
 from app.services.prompt_service import PromptService
 from app.services.workspace_news_service import (
     ArticleNotFoundError,
@@ -53,13 +61,12 @@ def analyze_article(
     current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
     workspace_news_service: WorkspaceNewsService = Depends(get_workspace_news_service),
+    analysis_history_service: AnalysisHistoryService = Depends(get_analysis_history_service),
 ):
     settings = get_settings()
 
-    try:
-        workspace_service.get_workspace(workspace_id)
-    except WorkspaceNotFoundError:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+    workspace = _get_workspace_or_404(workspace_service, workspace_id)
+    _ensure_workspace_access(workspace.id, workspace.user_id, current_user.id)
 
     try:
         article = workspace_news_service.get_article(workspace_id, request.article_id)
@@ -86,7 +93,43 @@ def analyze_article(
     llm = get_llm(settings)
     agent = AnalysisAgent(llm=llm, system_prompt=system_prompt)
 
-    return agent.analyze(categories, few_shots, article.content, custom_system_prompt)
+    insight = agent.analyze(categories, few_shots, article.content, custom_system_prompt)
+    analysis_history_service.save_run(
+        workspace_id=workspace_id,
+        article_id=request.article_id,
+        triggered_user_id=current_user.id,
+        insight_payload=insight.model_dump(mode="json"),
+        created_at=datetime.now(),
+    )
+
+    return insight
+
+
+@router.get("/analysis-history", response_model=AnalysisHistoryPage)
+def get_analysis_history(
+    workspace_id: str,
+    article_id: str = Query(...),
+    page: int = Query(..., ge=1),
+    limit: int = Query(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+    analysis_history_service: AnalysisHistoryService = Depends(get_analysis_history_service),
+):
+    workspace = _get_workspace_or_404(workspace_service, workspace_id)
+    _ensure_workspace_access(workspace.id, workspace.user_id, current_user.id)
+    if limit != 10:
+        raise HTTPException(status_code=400, detail="limit must be 10")
+
+    try:
+        return analysis_history_service.list_runs(
+            workspace_id=workspace_id,
+            article_id=article_id,
+            triggered_user_id=current_user.id,
+            page=page,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/feedback", response_model=EvaluationReport)
@@ -263,6 +306,28 @@ def _enrich_feedbacks_with_headlines(
             )
         )
     return enriched
+
+
+def _get_workspace_or_404(
+    workspace_service: WorkspaceService,
+    workspace_id: str,
+):
+    try:
+        return workspace_service.get_workspace(workspace_id)
+    except WorkspaceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Workspace not found") from exc
+
+
+def _ensure_workspace_access(
+    workspace_id: str,
+    workspace_user_id: str | None,
+    current_user_id: str,
+) -> None:
+    if workspace_id == "organization":
+        return
+    if workspace_user_id == current_user_id:
+        return
+    raise HTTPException(status_code=403, detail="Workspace access forbidden")
 
 
 @router.post("/chat-reasoning")

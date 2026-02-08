@@ -41,7 +41,7 @@ SESSION_DURATION_DAYS = 7
 
 
 def init_db(db_path: str) -> None:
-    """Create users and sessions tables if they don't exist."""
+    """Create required database tables and indexes if they do not exist."""
     conn = sqlite3.connect(db_path)
     conn.execute(
         """
@@ -62,6 +62,30 @@ def init_db(db_path: str) -> None:
             created_at TEXT NOT NULL,
             expires_at TEXT NOT NULL
         )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS analysis_runs (
+            id TEXT PRIMARY KEY,
+            workspace_id TEXT NOT NULL,
+            article_id TEXT NOT NULL,
+            triggered_user_id TEXT NOT NULL,
+            insight_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_analysis_runs_lookup
+        ON analysis_runs (workspace_id, article_id, triggered_user_id, created_at DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_analysis_runs_user_recent
+        ON analysis_runs (triggered_user_id, created_at DESC)
         """
     )
     conn.commit()
