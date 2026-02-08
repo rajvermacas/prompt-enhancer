@@ -111,6 +111,7 @@ def get_analysis_history(
     article_id: str = Query(...),
     page: int = Query(..., ge=1),
     limit: int = Query(..., ge=1),
+    exclude_latest: bool = Query(...),
     current_user: User = Depends(get_current_user),
     workspace_service: WorkspaceService = Depends(get_workspace_service),
     analysis_history_service: AnalysisHistoryService = Depends(get_analysis_history_service),
@@ -127,6 +128,7 @@ def get_analysis_history(
             triggered_user_id=current_user.id,
             page=page,
             limit=limit,
+            exclude_latest=exclude_latest,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

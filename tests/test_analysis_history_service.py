@@ -54,6 +54,7 @@ def test_save_and_list_runs_newest_first(service):
         triggered_user_id="u-1",
         page=1,
         limit=10,
+        exclude_latest=False,
     )
 
     assert page.total == 2
@@ -83,6 +84,7 @@ def test_list_runs_is_scoped_to_triggering_user(service):
         triggered_user_id="u-1",
         page=1,
         limit=10,
+        exclude_latest=False,
     )
 
     assert page.total == 1
@@ -107,6 +109,7 @@ def test_list_runs_supports_pagination(service):
         triggered_user_id="u-1",
         page=1,
         limit=10,
+        exclude_latest=False,
     )
     second_page = service.list_runs(
         workspace_id="ws-1",
@@ -114,6 +117,7 @@ def test_list_runs_supports_pagination(service):
         triggered_user_id="u-1",
         page=2,
         limit=10,
+        exclude_latest=False,
     )
 
     assert first_page.total == 11
@@ -121,3 +125,82 @@ def test_list_runs_supports_pagination(service):
     assert first_page.has_next is True
     assert len(second_page.items) == 1
     assert second_page.has_next is False
+
+
+def test_list_runs_exclude_latest_removes_newest_entry(service):
+    run_one = service.save_run(
+        workspace_id="ws-1",
+        article_id="news-1",
+        triggered_user_id="u-1",
+        insight_payload=_insight_payload("Tech", "first"),
+        created_at=datetime(2026, 2, 8, 10, 0, 0),
+    )
+    run_two = service.save_run(
+        workspace_id="ws-1",
+        article_id="news-1",
+        triggered_user_id="u-1",
+        insight_payload=_insight_payload("Finance", "second"),
+        created_at=datetime(2026, 2, 8, 10, 5, 0),
+    )
+
+    page = service.list_runs(
+        workspace_id="ws-1",
+        article_id="news-1",
+        triggered_user_id="u-1",
+        page=1,
+        limit=10,
+        exclude_latest=True,
+    )
+
+    assert page.total == 1
+    assert page.has_next is False
+    assert [item.id for item in page.items] == [run_one.id]
+    assert run_two.id not in [item.id for item in page.items]
+
+
+def test_list_runs_exclude_latest_with_single_run_returns_empty(service):
+    service.save_run(
+        workspace_id="ws-1",
+        article_id="news-1",
+        triggered_user_id="u-1",
+        insight_payload=_insight_payload("Tech", "only"),
+        created_at=datetime(2026, 2, 8, 10, 0, 0),
+    )
+
+    page = service.list_runs(
+        workspace_id="ws-1",
+        article_id="news-1",
+        triggered_user_id="u-1",
+        page=1,
+        limit=10,
+        exclude_latest=True,
+    )
+
+    assert page.total == 0
+    assert page.items == []
+    assert page.has_next is False
+
+
+def test_list_runs_exclude_latest_keeps_pagination_correct(service):
+    start = datetime(2026, 2, 8, 10, 0, 0)
+    for offset in range(11):
+        service.save_run(
+            workspace_id="ws-1",
+            article_id="news-1",
+            triggered_user_id="u-1",
+            insight_payload=_insight_payload("Tech", f"run-{offset}"),
+            created_at=start + timedelta(minutes=offset),
+        )
+
+    first_page = service.list_runs(
+        workspace_id="ws-1",
+        article_id="news-1",
+        triggered_user_id="u-1",
+        page=1,
+        limit=10,
+        exclude_latest=True,
+    )
+
+    assert first_page.total == 10
+    assert len(first_page.items) == 10
+    assert first_page.has_next is False

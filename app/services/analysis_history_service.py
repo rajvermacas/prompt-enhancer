@@ -62,6 +62,7 @@ class AnalysisHistoryService:
         triggered_user_id: str,
         page: int,
         limit: int,
+        exclude_latest: bool,
     ) -> AnalysisHistoryPage:
         _require_value(workspace_id, "workspace_id")
         _require_value(article_id, "article_id")
@@ -70,10 +71,22 @@ class AnalysisHistoryService:
             raise ValueError("page must be >= 1")
         if limit < 1:
             raise ValueError("limit must be >= 1")
+        if exclude_latest is None:
+            raise ValueError("exclude_latest is required")
+        if not isinstance(exclude_latest, bool):
+            raise ValueError("exclude_latest must be a bool")
 
         offset = (page - 1) * limit
-        total = self._count_runs(workspace_id, article_id, triggered_user_id)
-        entries = self._fetch_runs(workspace_id, article_id, triggered_user_id, limit, offset)
+        raw_total = self._count_runs(workspace_id, article_id, triggered_user_id)
+        total = raw_total - 1 if exclude_latest and raw_total > 0 else raw_total
+        db_offset = offset + 1 if exclude_latest else offset
+        entries = self._fetch_runs(
+            workspace_id,
+            article_id,
+            triggered_user_id,
+            limit,
+            db_offset,
+        )
 
         return AnalysisHistoryPage(
             items=entries,

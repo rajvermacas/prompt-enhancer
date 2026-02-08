@@ -129,7 +129,7 @@
         const state = getState(articleId);
         state.page = page;
 
-        fetch(`/api/workspaces/${wsId}/analysis-history?article_id=${articleId}&page=${page}&limit=${HISTORY_PAGE_LIMIT}`)
+        fetch(`/api/workspaces/${wsId}/analysis-history?article_id=${articleId}&page=${page}&limit=${HISTORY_PAGE_LIMIT}&exclude_latest=true`)
             .then((response) => {
                 if (!response.ok) {
                     throw new Error('Failed to load analysis history');
@@ -140,6 +140,8 @@
                 state.pageData = pageData;
                 if (pageData.items.length > 0) {
                     state.selectedRunId = pageData.items[0].id;
+                } else {
+                    state.selectedRunId = null;
                 }
                 requireHistoryContainer(articleId).innerHTML = buildHistoryMarkup(articleId);
             })

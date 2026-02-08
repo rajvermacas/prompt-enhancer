@@ -170,6 +170,7 @@ def test_get_analysis_history_returns_user_scoped_page(settings_and_workspace):
         article_id="news-1",
         page=1,
         limit=10,
+        exclude_latest=True,
         current_user=current_user,
         workspace_service=workspace_service,
         analysis_history_service=history_service,
@@ -182,6 +183,7 @@ def test_get_analysis_history_returns_user_scoped_page(settings_and_workspace):
         triggered_user_id=current_user.id,
         page=1,
         limit=10,
+        exclude_latest=True,
     )
 
 
@@ -203,6 +205,7 @@ def test_get_analysis_history_rejects_invalid_limit(settings_and_workspace):
             article_id="news-1",
             page=1,
             limit=20,
+            exclude_latest=True,
             current_user=current_user,
             workspace_service=workspace_service,
             analysis_history_service=MagicMock(),
@@ -228,6 +231,7 @@ def test_get_analysis_history_forbidden_for_non_owner(settings_and_workspace):
             article_id="news-1",
             page=1,
             limit=10,
+            exclude_latest=True,
             current_user=_build_user("u-other"),
             workspace_service=workspace_service,
             analysis_history_service=MagicMock(),
@@ -262,6 +266,7 @@ def test_get_analysis_history_allows_organization_workspace():
         article_id="news-1",
         page=1,
         limit=10,
+        exclude_latest=True,
         current_user=current_user,
         workspace_service=workspace_service,
         analysis_history_service=history_service,
