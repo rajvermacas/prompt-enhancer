@@ -51,7 +51,18 @@
                 </button>
             </div>
             <div id="categories-history-meta" class="text-sm text-gray-600 mb-3"></div>
-            <pre id="categories-history-diff" class="bg-gray-50 border border-gray-100 rounded-lg p-3 text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap"></pre>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <div class="history-diff-legend bg-gray-50 px-3 py-2 text-xs text-gray-600 flex flex-wrap items-center gap-4">
+                    <span class="font-medium text-gray-700">Git-style Diff</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-100 border border-green-300 rounded"></span>Added</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-100 border border-red-300 rounded"></span>Removed</span>
+                </div>
+                <div class="grid grid-cols-2 border-t border-gray-200 bg-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                    <div class="px-3 py-1.5">Previous Version</div>
+                    <div class="px-3 py-1.5 border-l border-gray-200">Selected Version</div>
+                </div>
+                <div id="categories-history-diff" class="history-diff-body bg-white text-xs font-mono overflow-x-auto max-h-80"></div>
+            </div>
         </div>
     </div>
 
@@ -77,7 +88,18 @@
                 </button>
             </div>
             <div id="fewshots-history-meta" class="text-sm text-gray-600 mb-3"></div>
-            <pre id="fewshots-history-diff" class="bg-gray-50 border border-gray-100 rounded-lg p-3 text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap"></pre>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <div class="history-diff-legend bg-gray-50 px-3 py-2 text-xs text-gray-600 flex flex-wrap items-center gap-4">
+                    <span class="font-medium text-gray-700">Git-style Diff</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-100 border border-green-300 rounded"></span>Added</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-100 border border-red-300 rounded"></span>Removed</span>
+                </div>
+                <div class="grid grid-cols-2 border-t border-gray-200 bg-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                    <div class="px-3 py-1.5">Previous Version</div>
+                    <div class="px-3 py-1.5 border-l border-gray-200">Selected Version</div>
+                </div>
+                <div id="fewshots-history-diff" class="history-diff-body bg-white text-xs font-mono overflow-x-auto max-h-80"></div>
+            </div>
         </div>
     </div>
 
@@ -105,7 +127,18 @@
                 </button>
             </div>
             <div id="systemprompt-history-meta" class="text-sm text-gray-600 mb-3"></div>
-            <pre id="systemprompt-history-diff" class="bg-gray-50 border border-gray-100 rounded-lg p-3 text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap"></pre>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <div class="history-diff-legend bg-gray-50 px-3 py-2 text-xs text-gray-600 flex flex-wrap items-center gap-4">
+                    <span class="font-medium text-gray-700">Git-style Diff</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-100 border border-green-300 rounded"></span>Added</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-100 border border-red-300 rounded"></span>Removed</span>
+                </div>
+                <div class="grid grid-cols-2 border-t border-gray-200 bg-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                    <div class="px-3 py-1.5">Previous Version</div>
+                    <div class="px-3 py-1.5 border-l border-gray-200">Selected Version</div>
+                </div>
+                <div id="systemprompt-history-diff" class="history-diff-body bg-white text-xs font-mono overflow-x-auto max-h-80"></div>
+            </div>
         </div>
     </div>
 
@@ -216,6 +249,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/prompt-history-diff.js"></script>
 <script src="/static/js/prompts-core.js"></script>
 <script src="/static/js/prompts-suggestions.js"></script>
 {% endblock %}

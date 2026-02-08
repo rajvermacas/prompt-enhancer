@@ -286,9 +286,8 @@
             })
             .catch(err => {
                 const meta = document.getElementById(`${type}-history-meta`);
-                const diff = document.getElementById(`${type}-history-diff`);
                 meta.textContent = '';
-                diff.textContent = `Error loading history: ${err.message}`;
+                renderDiffStatus(type, `Error loading history: ${err.message}`, true);
             });
     }
 
@@ -317,36 +316,139 @@
 
         if (!selected) {
             meta.textContent = '';
-            diff.textContent = 'Select a version to inspect diff details.';
+            renderDiffStatus(type, 'Select a version to inspect diff details.', false);
             return;
         }
 
         const previous = history.find(entry => entry.version === selected.version - 1);
         meta.textContent = `Updated by ${selected.updated_by} via ${selected.source}` +
             ` at ${selected.updated_at}`;
-        diff.textContent = buildVersionDiffText(selected.content, previous ? previous.content : null);
+        const historyDiff = getPromptHistoryDiffModule();
+        const rows = historyDiff.buildPromptHistoryDiffRows(
+            type,
+            selected.content,
+            previous ? previous.content : null,
+        );
+        renderDiffRows(diff, rows);
     }
 
-    function buildVersionDiffText(currentContent, previousContent) {
-        const currentText = JSON.stringify(currentContent, null, 2);
-        if (previousContent === null) {
-            return `Selected version content:\n${currentText}`;
+    function getPromptHistoryDiffModule() {
+        const historyDiff = window.PromptHistoryDiff;
+        if (!historyDiff || typeof historyDiff.buildPromptHistoryDiffRows !== 'function') {
+            throw new Error('PromptHistoryDiff module is required');
         }
+        return historyDiff;
+    }
 
-        const currentLines = currentText.split('\n');
-        const previousLines = JSON.stringify(previousContent, null, 2).split('\n');
-        const added = currentLines.filter(line => !previousLines.includes(line));
-        const removed = previousLines.filter(line => !currentLines.includes(line));
-        const addedText = added.length ? added.join('\n') : '(none)';
-        const removedText = removed.length ? removed.join('\n') : '(none)';
+    function renderDiffStatus(type, message, isError) {
+        const diff = document.getElementById(`${type}-history-diff`);
+        const textColor = isError ? 'text-red-700' : 'text-gray-500';
+        diff.innerHTML = `<div class="px-3 py-2 ${textColor}">${escapeHtml(message)}</div>`;
+    }
 
-        return [
-            'Added Lines:',
-            addedText,
-            '',
-            'Removed Lines:',
-            removedText,
-        ].join('\n');
+    function renderDiffRows(diffElement, rows) {
+        if (!Array.isArray(rows)) {
+            throw new Error('rows must be an array');
+        }
+        diffElement.innerHTML = rows.map(row => renderDiffRow(row)).join('');
+    }
+
+    function renderDiffRow(row) {
+        if (!row || !row.type) {
+            throw new Error('Diff row requires a type');
+        }
+        if (row.type === 'hunk-header') {
+            if (row.text === undefined || row.text === null) {
+                throw new Error('hunk-header row requires text');
+            }
+            return `
+                <div class="px-3 py-1 bg-gray-800 text-gray-100 whitespace-pre">
+                    ${escapeHtml(row.text)}
+                </div>
+            `;
+        }
+        if (row.type === 'info') {
+            if (row.text === undefined || row.text === null) {
+                throw new Error('info row requires text');
+            }
+            return `
+                <div class="px-3 py-2 text-gray-500 italic whitespace-pre">
+                    ${escapeHtml(row.text)}
+                </div>
+            `;
+        }
+        if (row.type === 'line') {
+            return renderSideBySideDiffRow(row);
+        }
+        throw new Error(`Unsupported diff row type: ${row.type}`);
+    }
+
+    function renderSideBySideDiffRow(row) {
+        if (!('left' in row) || !('right' in row)) {
+            throw new Error('line row requires left and right fields');
+        }
+        return `
+            <div class="grid grid-cols-2 border-t border-gray-100">
+                ${renderDiffSideCell(row.left, 'left')}
+                ${renderDiffSideCell(row.right, 'right')}
+            </div>
+        `;
+    }
+
+    function renderDiffSideCell(side, column) {
+        if (column !== 'left' && column !== 'right') {
+            throw new Error(`Unknown diff column: ${column}`);
+        }
+        if (side === null) {
+            return `
+                <div class="grid grid-cols-[3rem_1fr] gap-2 px-3 py-0.5 bg-gray-50 text-gray-300">
+                    <span class="text-right text-[11px] select-none"></span>
+                    <span class="whitespace-pre"></span>
+                </div>
+            `;
+        }
+        if (!side.kind || side.text === undefined || side.lineNumber === undefined) {
+            throw new Error('Diff side requires kind, text, and lineNumber');
+        }
+        const sideClass = getDiffSideCellClass(side.kind);
+        const prefix = getDiffKindPrefix(side.kind);
+        const prefixClass = getDiffPrefixClass(side.kind);
+        return `
+            <div class="grid grid-cols-[3rem_1fr] gap-2 px-3 py-0.5 ${sideClass}">
+                <span class="text-right text-[11px] text-gray-500 select-none">${formatDiffLineNumber(side.lineNumber)}</span>
+                <span class="whitespace-pre">
+                    <span class="select-none ${prefixClass}">${prefix}</span>${escapeHtml(side.text)}
+                </span>
+            </div>
+        `;
+    }
+
+    function getDiffSideCellClass(kind) {
+        if (kind === 'context') return 'bg-white text-gray-800';
+        if (kind === 'added') return 'bg-green-50 text-green-900';
+        if (kind === 'removed') return 'bg-red-50 text-red-900';
+        throw new Error(`Unknown diff kind: ${kind}`);
+    }
+
+    function getDiffKindPrefix(kind) {
+        if (kind === 'context') return ' ';
+        if (kind === 'added') return '+';
+        if (kind === 'removed') return '-';
+        throw new Error(`Unknown diff kind: ${kind}`);
+    }
+
+    function getDiffPrefixClass(kind) {
+        if (kind === 'context') return 'text-gray-500';
+        if (kind === 'added') return 'text-green-700';
+        if (kind === 'removed') return 'text-red-700';
+        throw new Error(`Unknown diff kind: ${kind}`);
+    }
+
+    function formatDiffLineNumber(lineNumber) {
+        if (lineNumber === null || lineNumber === undefined) {
+            return '';
+        }
+        return String(lineNumber);
     }
 
     function restorePromptVersion(type) {
